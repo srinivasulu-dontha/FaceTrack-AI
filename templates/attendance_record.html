@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Attendance Records</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #0f172a;
+      color: #f1f5f9;
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+    }
+
+    .top-bar {
+      background: linear-gradient(90deg, #1e293b, #1e40af);
+      padding: .8rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, .4);
+    }
+
+    .top-bar h4 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .page {
+      padding: 1.5rem 2rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .filter-bar {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem;
+      align-items: flex-end;
+      border: 1px solid #334155;
+    }
+
+    .filter-bar label {
+      font-size: .72rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      display: block;
+      margin-bottom: .25rem;
+    }
+
+    .filter-bar input[type=date],
+    .filter-bar input[type=text] {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #f1f5f9;
+      border-radius: 7px;
+      padding: .35rem .75rem;
+      font-size: .85rem;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .filter-bar input:focus {
+      border-color: #3b82f6;
+    }
+
+    .period-btns {
+      display: flex;
+      gap: .4rem;
+    }
+
+    .period-btns a {
+      padding: .35rem .75rem;
+      border-radius: 7px;
+      font-size: .78rem;
+      font-weight: 600;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      text-decoration: none;
+      transition: .2s;
+    }
+
+    .period-btns a:hover,
+    .period-btns a.active-period {
+      background: #1d4ed8;
+      border-color: #1d4ed8;
+      color: #fff;
+    }
+
+    .summary-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: .75rem;
+    }
+
+    .rec-count {
+      font-size: .82rem;
+      color: #64748b;
+    }
+
+    .rec-count span {
+      color: #60a5fa;
+      font-weight: 700;
+      font-size: 1rem;
+    }
+
+    .tbl-wrap {
+      background: #1e293b;
+      border-radius: 14px;
+      border: 1px solid #334155;
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .875rem;
+    }
+
+    thead th {
+      background: #0f172a;
+      padding: .75rem 1rem;
+      color: #64748b;
+      font-size: .72rem;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      font-weight: 600;
+      border-bottom: 1px solid #334155;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #1e293b;
+      transition: background .15s;
+    }
+
+    tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    tbody tr:hover {
+      background: rgba(59, 130, 246, .07);
+    }
+
+    tbody td {
+      padding: .65rem 1rem;
+      color: #e2e8f0;
+    }
+
+    .badge-roll {
+      background: rgba(96, 165, 250, .15);
+      color: #93c5fd;
+      border-radius: 6px;
+      padding: .2rem .55rem;
+      font-size: .75rem;
+      font-weight: 600;
+    }
+
+    .badge-status {
+      padding: .18rem .5rem;
+      border-radius: 5px;
+      font-size: .7rem;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+
+    .bs-present {
+      background: rgba(34, 197, 94, .12);
+      color: #86efac;
+    }
+
+    .bs-late {
+      background: rgba(245, 158, 11, .14);
+      color: #fde68a;
+    }
+
+    .bs-manual {
+      background: rgba(99, 102, 241, .12);
+      color: #c4b5fd;
+    }
+
+    .no-record {
+      text-align: center;
+      padding: 3rem;
+      color: #475569;
+    }
+
+    /* Manual attendance modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .7);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-box {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 2rem;
+      width: 420px;
+      max-width: 95vw;
+      animation: slideUp .3s cubic-bezier(.16, 1, .3, 1);
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(30px);
+        opacity: 0
+      }
+
+      to {
+        transform: none;
+        opacity: 1
+      }
+    }
+
+    .modal-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 1.25rem;
+    }
+
+    .form-group {
+      margin-bottom: .9rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: .72rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      margin-bottom: .35rem;
+    }
+
+    .form-input {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #f1f5f9;
+      border-radius: 8px;
+      padding: .55rem .8rem;
+      font-size: .88rem;
+      outline: none;
+      transition: border-color .2s;
+      font-family: inherit;
+    }
+
+    .form-input:focus {
+      border-color: #3b82f6;
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: .6rem;
+      justify-content: flex-end;
+      margin-top: 1.25rem;
+    }
+
+    @media print {
+
+      .top-bar,
+      .filter-bar,
+      .no-print {
+        display: none !important;
+      }
+
+      body {
+        background: #fff;
+        color: #000;
+      }
+
+      .tbl-wrap {
+        border: 1px solid #ccc;
+      }
+
+      table {
+        font-size: 12px;
+      }
+
+      thead th {
+        background: #f3f4f6;
+        color: #000;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="top-bar">
+    <div style="display:flex;align-items:center;gap:.75rem;">
+      <a href="{{ '/' if current_user and current_user.role == 'admin' else '/mark_attendance' }}"
+        class="btn btn-sm btn-outline-light" style="border-radius:7px;">← Back</a>
+      <h4>📋 Attendance Records</h4>
+    </div>
+    <div class="no-print" style="display:flex;gap:.5rem;flex-wrap:wrap;">
+      {% if current_user and current_user.role == 'admin' %}
+      <button class="btn btn-sm btn-outline-primary" style="border-radius:7px;"
+        onclick="document.getElementById('manualModal').classList.add('open')">✏️ Manual Entry</button>
+      {% endif %}
+      <a href="/download_csv" class="btn btn-sm btn-outline-success" style="border-radius:7px;">⬇ CSV</a>
+      <a href="/download_pdf" class="btn btn-sm btn-outline-light" style="border-radius:7px;">📄 PDF</a>
+      <button onclick="window.print()" class="btn btn-sm btn-outline-secondary" style="border-radius:7px;">🖨
+        Print</button>
+      {% if current_user and current_user.role == 'admin' %}
+      <button id="clearAllBtn" class="btn btn-sm btn-outline-danger" style="border-radius:7px;">🗑 Clear All</button>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="page">
+
+    <!-- Filter Bar -->
+    <form method="get" action="/attendance_record" class="filter-bar">
+      <div>
+        <label>Quick Filter</label>
+        <div class="period-btns">
+          <a href="/attendance_record?period=all" class="{{ 'active-period' if period=='all' }}">All</a>
+          <a href="/attendance_record?period=daily" class="{{ 'active-period' if period=='daily' }}">Today</a>
+          <a href="/attendance_record?period=weekly" class="{{ 'active-period' if period=='weekly' }}">Week</a>
+          <a href="/attendance_record?period=monthly" class="{{ 'active-period' if period=='monthly' }}">Month</a>
+        </div>
+      </div>
+      <div>
+        <label for="start_date">From Date</label>
+        <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+      </div>
+      <div>
+        <label for="end_date">To Date</label>
+        <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button type="submit" class="btn btn-primary btn-sm" style="border-radius:7px;height:34px;">Apply</button>
+      </div>
+      <div>
+        <label>Search</label>
+        <input type="text" id="searchInput" placeholder="Name or Roll…" oninput="filterTable()" style="width:160px;">
+      </div>
+    </form>
+
+    <!-- Summary -->
+    <div class="summary-bar">
+      <div class="rec-count">Showing <span id="visCount">{{ records|length }}</span> of {{ records|length }} records
+      </div>
+      <div style="font-size:.78rem;color:#475569;">All times in local time</div>
+    </div>
+
+    <!-- Table -->
+    <div class="tbl-wrap">
+      <table id="recTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Roll No</th>
+            <th>Name</th>
+            <th>Date &amp; Time</th>
+            <th>Status</th>
+            <th class="no-print">Action</th>
+          </tr>
+        </thead>
+        <tbody id="recTbody">
+          {% for r in records %}
+          <tr id="row-{{ r[0] }}" data-name="{{ r[2]|lower }}" data-roll="{{ (r[1] or '')|lower }}">
+            <td>{{ loop.index }}</td>
+            <td><span class="badge-roll">{{ r[1] or '—' }}</span></td>
+            <td>{{ r[2] }}</td>
+            <td class="utc-time">{{ r[3] }}</td>
+            <td>
+              <span
+                class="badge-status {{ 'bs-late' if r[4]=='late' else 'bs-manual' if r[4]=='manual' else 'bs-present' }}">
+                {{ r[4] or 'present' }}
+              </span>
+            </td>
+            <td class="no-print">
+              {% if current_user and current_user.role == 'admin' %}
+              <button class="btn btn-sm btn-outline-danger"
+                style="border-radius:6px;padding:.2rem .65rem;font-size:.78rem;" data-id="{{ r[0] }}"
+                onclick="deleteRecord(this)">Delete</button>
+              {% else %}
+              <span style="color:#475569;font-size:.75rem;">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="no-record">No attendance records found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Manual Attendance Modal -->
+  <div class="modal-overlay" id="manualModal">
+    <div class="modal-box">
+      <div class="modal-title">✏️ Manual Attendance Entry</div>
+      <p style="font-size:.8rem;color:#64748b;margin-bottom:1.2rem;">Use this to record attendance for a past date when
+        face recognition wasn't available.</p>
+      <div class="form-group">
+        <label>Student</label>
+        <select class="form-input" id="manualStudent">
+          <option value="">— Select Student —</option>
+          {% for s in all_students %}
+          <option value="{{ s[0] }}">{{ s[1] }} {% if s[2] %}({{ s[2] }}){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" class="form-input" id="manualDate">
+      </div>
+      <div class="form-group">
+        <label>Reason / Notes</label>
+        <input type="text" class="form-input" id="manualReason" placeholder="e.g. Camera was offline">
+      </div>
+      <div id="manualError" style="color:#f87171;font-size:.8rem;display:none;margin-bottom:.5rem;"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" style="border-radius:7px;"
+          onclick="document.getElementById('manualModal').classList.remove('open')">Cancel</button>
+        <button class="btn btn-primary btn-sm" style="border-radius:7px;font-weight:600;" onclick="submitManual()">✅
+          Save Entry</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Set today's date default in manual modal
+    document.getElementById('manualDate').value = new Date().toISOString().slice(0, 10);
+
+    // Close modal on overlay click
+    document.getElementById('manualModal').addEventListener('click', function (e) {
+      if (e.target === this) this.classList.remove('open');
+    });
+
+    // Format timestamps
+    document.querySelectorAll('.utc-time').forEach(el => {
+      const raw = el.textContent.trim();
+      if (raw.length >= 19) {
+        const date = raw.substring(0, 10);
+        const time = raw.substring(11, 19);
+        const [Y, M, D] = date.split('-');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const hh = parseInt(time.substring(0, 2));
+        const ampm = hh >= 12 ? 'PM' : 'AM';
+        const h12 = ((hh % 12) || 12).toString().padStart(2, '0');
+        el.textContent = `${D} ${months[parseInt(M) - 1]} ${Y}, ${h12}:${time.substring(3, 5)} ${ampm}`;
+      }
+    });
+
+    // Client-side filter
+    function filterTable() {
+      const q = document.getElementById('searchInput').value.toLowerCase().trim();
+      let vis = 0;
+      document.querySelectorAll('#recTbody tr[id]').forEach(tr => {
+        const name = tr.dataset.name || '';
+        const roll = tr.dataset.roll || '';
+        const show = !q || name.includes(q) || roll.includes(q);
+        tr.style.display = show ? '' : 'none';
+        if (show) vis++;
+      });
+      document.getElementById('visCount').textContent = vis;
+    }
+
+    // Delete single record
+    function deleteRecord(btn) {
+      const id = btn.getAttribute('data-id');
+      if (!confirm("Delete this attendance record?")) return;
+      fetch('/delete_attendance/' + id, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(d => {
+          if (d.deleted) { document.getElementById('row-' + id).remove(); filterTable(); }
+          else { alert("Failed to delete"); }
+        }).catch(e => console.error(e));
+    }
+
+    // Clear all — only reachable by admins (button is hidden for staff)
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    if (clearAllBtn) {
+      clearAllBtn.addEventListener('click', () => {
+        Swal.fire({
+          title: 'Clear All Records?',
+          text: 'This will permanently delete ALL attendance records. This cannot be undone.',
+          icon: 'warning', background: '#1e293b', color: '#f1f5f9',
+          showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#334155',
+          confirmButtonText: 'Yes, Clear All'
+        }).then(result => {
+          if (!result.isConfirmed) return;
+          fetch('/clear_all_attendance', { method: 'DELETE' })
+            .then(r => r.json())
+            .then(d => { if (d.cleared) window.location.reload(); });
+        });
+      });
+    }
+
+    // Manual attendance submit
+    async function submitManual() {
+      const student_id = document.getElementById('manualStudent').value;
+      const date = document.getElementById('manualDate').value;
+      const reason = document.getElementById('manualReason').value;
+      const errEl = document.getElementById('manualError');
+      if (!student_id) { errEl.textContent = 'Please select a student'; errEl.style.display = ''; return; }
+      if (!date) { errEl.textContent = 'Please select a date'; errEl.style.display = ''; return; }
+      try {
+        const res = await fetch('/manual_attendance', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ student_id: parseInt(student_id), date, reason })
+        });
+        const d = await res.json();
+        if (d.error) { errEl.textContent = d.error; errEl.style.display = ''; return; }
+        document.getElementById('manualModal').classList.remove('open');
+        Swal.fire({
+          title: '✅ Attendance Added',
+          text: `Manual attendance recorded for ${d.name} on ${d.date}`,
+          icon: 'success', background: '#1e293b', color: '#f1f5f9',
+          confirmButtonColor: '#2563eb'
+        }).then(() => window.location.reload());
+      } catch (e) {
+        errEl.textContent = 'Network error. Please try again.'; errEl.style.display = '';
+      }
+    }
+  </script>
+</body>
+
+</html>

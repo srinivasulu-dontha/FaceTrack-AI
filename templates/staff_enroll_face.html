@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Enroll Face — {{ staff_user[2] }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        body {
+            background: #0f172a;
+            color: #f1f5f9;
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh
+        }
+
+        .top-bar {
+            background: linear-gradient(90deg, #1e293b, #1e40af);
+            padding: .8rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, .4)
+        }
+
+        .top-bar h4 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #f8fafc
+        }
+
+        .page {
+            padding: 2rem;
+            max-width: 780px;
+            margin: 0 auto
+        }
+
+        .info-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 14px;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem
+        }
+
+        .avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #6366f1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0
+        }
+
+        .cam-card {
+            background: #1e293b;
+            border-radius: 14px;
+            border: 1px solid #334155;
+            padding: 1.5rem;
+            text-align: center
+        }
+
+        #video {
+            border-radius: 12px;
+            border: 2px solid #334155;
+            width: 100%;
+            max-width: 520px;
+            display: block;
+            margin: 0 auto;
+            background: #0f172a
+        }
+
+        .prog-wrap {
+            margin-top: .75rem
+        }
+
+        .prog-bar-bg {
+            background: #0f172a;
+            border-radius: 6px;
+            height: 10px;
+            overflow: hidden;
+            border: 1px solid #334155
+        }
+
+        .prog-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #22c55e, #16a34a);
+            border-radius: 6px;
+            transition: width .3s ease
+        }
+
+        #captureStatus {
+            font-size: .82rem;
+            color: #94a3b8;
+            margin-top: .4rem
+        }
+    </style>
+</head>
+
+<body data-staff-id="{{ staff_user[0] }}">
+    <div class="top-bar">
+        <div style="display:flex;align-items:center;gap:.75rem">
+            <a href="/admin/staff" class="btn btn-sm btn-outline-light" style="border-radius:7px">← Staff List</a>
+            <h4>📷 Enroll Face — {{ staff_user[2] }}</h4>
+        </div>
+    </div>
+
+    <div class="page">
+        <div class="info-card">
+            <div class="avatar">👤</div>
+            <div>
+                <div style="font-weight:700;color:#f1f5f9">{{ staff_user[2] }}</div>
+                <div style="font-size:.78rem;color:#64748b">Username: <code
+                        style="color:#93c5fd">{{ staff_user[1] }}</code> &nbsp;|&nbsp; Role: <strong>{{ staff_user[3]
+                        }}</strong></div>
+                <div style="font-size:.75rem;color:#475569;margin-top:.2rem">50 photos will be captured for face
+                    verification during login</div>
+            </div>
+        </div>
+
+        <div class="cam-card">
+            <video id="video" autoplay muted playsinline></video>
+            <div class="prog-wrap">
+                <div id="captureStatus">Click "Start Capture" to begin</div>
+                <div class="prog-bar-bg mt-1">
+                    <div class="prog-bar-fill" id="progressBar" style="width:0%"></div>
+                </div>
+            </div>
+            <div class="mt-3 d-flex gap-2 justify-content-center">
+                <button id="startBtn" class="btn btn-warning" style="border-radius:9px;font-weight:600">📷 Start Capture
+                    (50 photos)</button>
+                <button id="doneBtn" class="btn btn-success" style="border-radius:9px;font-weight:600;display:none">✅
+                    Done — Back to Staff List</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STAFF_ID = parseInt(document.body.dataset.staffId, 10);
+        const MAX_IMGS = 50;
+        const video = document.getElementById('video');
+        const statusEl = document.getElementById('captureStatus');
+        const progressBar = document.getElementById('progressBar');
+        const startBtn = document.getElementById('startBtn');
+        const doneBtn = document.getElementById('doneBtn');
+        let stream = null, captured = 0, images = [];
+
+        startBtn.addEventListener('click', async () => {
+            startBtn.disabled = true;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+                video.srcObject = stream;
+                await video.play();
+                captureLoop();
+            } catch (e) {
+                statusEl.textContent = 'Camera error: ' + e.message;
+                startBtn.disabled = false;
+            }
+        });
+
+        async function captureLoop() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            const ctx = canvas.getContext('2d');
+
+            while (captured < MAX_IMGS) {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.92));
+                images.push(blob);
+                captured++;
+                statusEl.innerText = `Captured ${captured} / ${MAX_IMGS}`;
+                progressBar.style.width = `${(captured / MAX_IMGS) * 100}%`;
+                await new Promise(r => setTimeout(r, 180));
+            }
+
+            statusEl.innerText = 'Uploading photos…';
+            const fd = new FormData();
+            fd.append('staff_id', STAFF_ID);
+            images.forEach((b, i) => fd.append('images[]', b, `img_${i}.jpg`));
+            const resp = await fetch('/upload_staff_face', { method: 'POST', body: fd });
+            if (resp.ok) {
+                const d = await resp.json();
+                statusEl.innerText = `✅ ${d.saved} photos uploaded! Face enrolled successfully.`;
+                progressBar.style.background = '#22c55e';
+                doneBtn.style.display = '';
+                startBtn.style.display = 'none';
+            } else {
+                statusEl.innerText = 'Upload failed. Try again.';
+                startBtn.disabled = false;
+            }
+            if (stream) stream.getTracks().forEach(t => t.stop());
+        }
+
+        doneBtn.addEventListener('click', () => window.location.href = '/admin/staff');
+    </script>
+</body>
+
+</html>

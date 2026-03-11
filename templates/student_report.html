@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Student Report — {{ student[1] }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: #0f172a;
+            color: #f1f5f9;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .top-bar {
+            background: linear-gradient(90deg, #1e293b, #1e40af);
+            padding: .85rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, .4);
+        }
+
+        .top-bar h4 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+
+        .page {
+            padding: 1.75rem 2rem;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* Profile card */
+        .profile-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .profile-avatar {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #3b82f6;
+            flex-shrink: 0;
+        }
+
+        .avatar-placeholder {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            border: 3px solid #334155;
+            background: #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            flex-shrink: 0;
+        }
+
+        .profile-info h2 {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #f8fafc;
+        }
+
+        .profile-meta {
+            display: flex;
+            gap: .6rem;
+            flex-wrap: wrap;
+            margin-top: .5rem;
+        }
+
+        .meta-badge {
+            padding: .25rem .65rem;
+            border-radius: 6px;
+            font-size: .75rem;
+            font-weight: 600;
+        }
+
+        .mb-blue {
+            background: rgba(59, 130, 246, .15);
+            color: #93c5fd;
+        }
+
+        .mb-green {
+            background: rgba(52, 211, 153, .12);
+            color: #6ee7b7;
+        }
+
+        .mb-purple {
+            background: rgba(168, 85, 247, .15);
+            color: #d8b4fe;
+        }
+
+        /* Stats row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 13px;
+            padding: 1.1rem 1.25rem;
+            text-align: center;
+        }
+
+        .stat-num {
+            font-size: 2rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .stat-lbl {
+            font-size: .68rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            margin-top: .25rem;
+        }
+
+        .s-blue {
+            color: #60a5fa;
+        }
+
+        .s-green {
+            color: #4ade80;
+        }
+
+        .s-amber {
+            color: #fbbf24;
+        }
+
+        .s-red {
+            color: #f87171;
+        }
+
+        /* Attendance calendar */
+        .cal-wrap {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .cal-title {
+            font-size: .72rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            margin-bottom: 1rem;
+        }
+
+        .cal-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .cal-day {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            cursor: default;
+            position: relative;
+        }
+
+        .cal-day:hover::after {
+            content: attr(data-date);
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: .65rem;
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        .day-absent {
+            background: #1e293b;
+            border: 1px solid #334155;
+        }
+
+        .day-present {
+            background: #22c55e;
+        }
+
+        .day-late {
+            background: #f59e0b;
+        }
+
+        .day-manual {
+            background: #6366f1;
+        }
+
+        .cal-legend {
+            display: flex;
+            gap: 1rem;
+            margin-top: .75rem;
+            font-size: .72rem;
+            color: #64748b;
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            display: inline-block;
+            margin-right: 4px;
+        }
+
+        /* Progress ring */
+        .ring-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-left: 1.5rem;
+            min-width: 130px;
+        }
+
+        .ring-label {
+            font-size: .72rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            margin-top: .5rem;
+        }
+
+        .ring-pct {
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+
+        /* Records table */
+        .tbl-wrap {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .tbl-header {
+            padding: .9rem 1.2rem;
+            font-size: .72rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            border-bottom: 1px solid #334155;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .875rem;
+        }
+
+        thead th {
+            background: #0f172a;
+            padding: .65rem 1rem;
+            color: #64748b;
+            font-size: .72rem;
+            text-transform: uppercase;
+            letter-spacing: .7px;
+            border-bottom: 1px solid #334155;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid rgba(51, 65, 85, .5);
+        }
+
+        tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        tbody tr:hover {
+            background: rgba(59, 130, 246, .05);
+        }
+
+        tbody td {
+            padding: .6rem 1rem;
+            color: #e2e8f0;
+        }
+
+        .badge-status {
+            padding: .2rem .55rem;
+            border-radius: 6px;
+            font-size: .72rem;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .bs-present {
+            background: rgba(34, 197, 94, .12);
+            color: #86efac;
+        }
+
+        .bs-late {
+            background: rgba(245, 158, 11, .12);
+            color: #fde68a;
+        }
+
+        .bs-manual {
+            background: rgba(99, 102, 241, .12);
+            color: #c4b5fd;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="top-bar">
+        <div style="display:flex;align-items:center;gap:.75rem;">
+            <a href="/manage_students" class="btn btn-sm btn-outline-light" style="border-radius:7px;">← Back</a>
+            <h4>📊 Student Attendance Report</h4>
+        </div>
+        <div style="font-size:.8rem;color:#94a3b8;">{{ student[1] }} — Roll: {{ student[2] or '—' }}</div>
+    </div>
+
+    <div class="page">
+        <!-- Profile -->
+        <div class="profile-card">
+            <img src="/student_image/{{ student[0] }}" alt="Photo" class="profile-avatar"
+                onerror="this.outerHTML='<div class=\'avatar-placeholder\'>👤</div>'">
+            <div class="profile-info" style="flex:1;">
+                <h2>{{ student[1] }}</h2>
+                <div class="profile-meta">
+                    {% if student[2] %}<span class="meta-badge mb-blue">Roll: {{ student[2] }}</span>{% endif %}
+                    {% if student[3] %}<span class="meta-badge mb-green">Class: {{ student[3] }}</span>{% endif %}
+                    {% if student[4] %}<span class="meta-badge mb-purple">Section: {{ student[4] }}</span>{% endif %}
+                </div>
+                <div style="font-size:.75rem;color:#475569;margin-top:.5rem;">Registered: {{ student[5][:10] if
+                    student[5] else '—' }}</div>
+            </div>
+            <!-- Attendance ring -->
+            <div class="ring-wrap">
+                <svg width="90" height="90" viewBox="0 0 90 90">
+                    <circle cx="45" cy="45" r="36" fill="none" stroke="#1e293b" stroke-width="8" />
+                    <circle cx="45" cy="45" r="36" fill="none"
+                        stroke="{{ '#22c55e' if pct >= 75 else '#f59e0b' if pct >= 50 else '#ef4444' }}"
+                        stroke-width="8" stroke-linecap="round" stroke-dasharray="{{ pct * 2.262 }} 226.2"
+                        transform="rotate(-90 45 45)" />
+                    <text x="45" y="50" text-anchor="middle" font-size="16" font-weight="800"
+                        fill="{{ '#4ade80' if pct >= 75 else '#fbbf24' if pct >= 50 else '#f87171' }}">{{ pct }}%</text>
+                </svg>
+                <div class="ring-label">Attendance</div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-num s-green">{{ att_dates|length }}</div>
+                <div class="stat-lbl">Days Present</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-num s-red">{{ [0, total_days - att_dates|length]|max }}</div>
+                <div class="stat-lbl">Days Absent</div>
+            </div>
+            <div class="stat-card">
+                {% set ns = namespace(late_count=0) %}{% for r in records %}{% if r[2]=='late' %}{% set ns.late_count =
+                ns.late_count + 1 %}{% endif %}{% endfor %}
+                <div class="stat-num s-amber">{{ ns.late_count }}</div>
+                <div class="stat-lbl">Late Arrivals</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-num s-blue">{{ total_days }}</div>
+                <div class="stat-lbl">Total School Days</div>
+            </div>
+        </div>
+
+        <!-- Calendar heatmap -->
+        <div class="cal-wrap">
+            <div class="cal-title">📅 Attendance Calendar (last 90 days)</div>
+            <div class="cal-grid" id="calGrid"></div>
+            <div class="cal-legend">
+                <span><span class="legend-dot day-present"></span>Present</span>
+                <span><span class="legend-dot day-late"></span>Late</span>
+                <span><span class="legend-dot day-manual"></span>Manual</span>
+                <span><span class="legend-dot day-absent" style="border:1px solid #334155;"></span>Absent</span>
+            </div>
+        </div>
+
+        <!-- Records table -->
+        <div class="tbl-wrap">
+            <div class="tbl-header">📋 Full Attendance History ({{ records|length }} records)</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in records %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ r[1][:10] if r[1] else '—' }}</td>
+                        <td>{{ r[1][11:16] if r[1] and r[1]|length > 10 else '—' }}</td>
+                        <td>
+                            <span
+                                class="badge-status {{ 'bs-late' if r[2]=='late' else 'bs-manual' if r[2]=='manual' else 'bs-present' }}">
+                                {{ r[2] or 'present' }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" style="text-align:center;padding:2rem;color:#475569;">No attendance records
+                            found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Build calendar heatmap for last 90 days
+        const attDates = {{ att_dates | tojson }};
+        const grid = document.getElementById('calGrid');
+        const today = new Date();
+        for (let i = 89; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            const iso = d.toISOString().slice(0, 10);
+            const status = attDates[iso] || 'absent';
+            const div = document.createElement('div');
+            div.className = 'cal-day day-' + status;
+            div.setAttribute('data-date', `${iso} (${status})`);
+            div.title = `${iso} — ${status}`;
+            grid.appendChild(div);
+        }
+    </script>
+</body>
+
+</html>

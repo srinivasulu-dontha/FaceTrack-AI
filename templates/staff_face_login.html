@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Face Verification — FaceTrack AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        body {
+            min-height: 100vh;
+            background: #0d1117;
+            color: #f1f5f9;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(6, 182, 212, .15) 0%, transparent 70%);
+            top: -100px;
+            right: -100px;
+            pointer-events: none
+        }
+
+        .card {
+            background: rgba(22, 33, 48, .95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(6, 182, 212, .2);
+            border-radius: 22px;
+            padding: 2rem;
+            width: 480px;
+            max-width: 98vw;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, .6);
+            position: relative;
+            z-index: 1
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem
+        }
+
+        .icon {
+            width: 52px;
+            height: 52px;
+            background: linear-gradient(135deg, #0891b2, #0d9488);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            flex-shrink: 0
+        }
+
+        h1 {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #f0f9ff
+        }
+
+        .sub {
+            font-size: .78rem;
+            color: #64748b;
+            margin-top: .15rem
+        }
+
+        /* Camera */
+        .cam-wrap {
+            position: relative;
+            background: #0d1117;
+            border-radius: 14px;
+            border: 2px solid #1e3a5f;
+            overflow: hidden;
+            aspect-ratio: 4/3;
+            margin-bottom: 1rem
+        }
+
+        #scanVideo {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0
+        }
+
+        #scanCanvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover
+        }
+
+        /* Scanning ring overlay */
+        .scan-ring {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none
+        }
+
+        .ring {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            border: 3px solid rgba(6, 182, 212, .4);
+            box-shadow: 0 0 0 6px rgba(6, 182, 212, .08) inset;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .7rem;
+            color: #67e8f9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all .4s
+        }
+
+        .ring.detected {
+            border-color: #22c55e;
+            animation: pulse 1s ease-in-out infinite
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 6px rgba(34, 197, 94, .1) inset
+            }
+
+            50% {
+                box-shadow: 0 0 0 12px rgba(34, 197, 94, .06) inset
+            }
+        }
+
+        /* Status */
+        #status {
+            padding: .55rem 1rem;
+            background: #0d1117;
+            border-radius: 8px;
+            border-left: 4px solid #0891b2;
+            font-size: .82rem;
+            color: #94a3b8;
+            transition: border-color .3s, color .3s;
+            margin-bottom: .75rem
+        }
+
+        #status.ok {
+            border-color: #22c55e;
+            color: #86efac
+        }
+
+        #status.err {
+            border-color: #ef4444;
+            color: #fca5a5
+        }
+
+        #status.warn {
+            border-color: #f59e0b;
+            color: #fde68a
+        }
+
+        /* Similarity bar */
+        .sim-bar {
+            height: 6px;
+            background: #1e293b;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: .75rem;
+            display: none
+        }
+
+        .sim-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: linear-gradient(90deg, #ef4444, #22c55e);
+            transition: width .4s
+        }
+
+        /* Buttons */
+        .row {
+            display: flex;
+            gap: .6rem
+        }
+
+        .btn {
+            flex: 1;
+            padding: .65rem;
+            border-radius: 9px;
+            font-weight: 700;
+            font-size: .88rem;
+            cursor: pointer;
+            border: none;
+            transition: all .2s;
+            font-family: inherit
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0891b2, #0d9488);
+            color: #fff
+        }
+
+        .btn-secondary {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #94a3b8
+        }
+
+        .btn:disabled {
+            opacity: .45;
+            cursor: not-allowed
+        }
+
+        .back {
+            text-align: center;
+            margin-top: .75rem
+        }
+
+        .back a {
+            color: #475569;
+            font-size: .78rem;
+            text-decoration: none
+        }
+
+        .back a:hover {
+            color: #94a3b8
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <div class="header">
+            <div class="icon">👤</div>
+            <div>
+                <h1>Face Verification</h1>
+                <div class="sub">Welcome back, <strong style="color:#67e8f9">{{ staff_name }}</strong> — please verify
+                    your identity</div>
+            </div>
+        </div>
+
+        <div class="cam-wrap">
+            <video id="scanVideo" autoplay muted playsinline></video>
+            <canvas id="scanCanvas"></canvas>
+            <div class="scan-ring">
+                <div class="ring" id="ring">Position face here</div>
+            </div>
+        </div>
+
+        <div id="status">⏳ Starting camera…</div>
+        <div class="sim-bar" id="simBar">
+            <div class="sim-fill" id="simFill" style="width:0%"></div>
+        </div>
+
+        <div class="row">
+            <button class="btn btn-primary" id="verifyBtn" onclick="manualVerify()" disabled>🔍 Verify Now</button>
+            <button class="btn btn-secondary" id="retryBtn" onclick="resetVerify()" style="display:none">↩ Try
+                Again</button>
+        </div>
+        <div class="back"><a href="/login">← Back to Login</a></div>
+    </div>
+
+    <!-- MediaPipe -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <script>
+        const video = document.getElementById('scanVideo');
+        const canvas = document.getElementById('scanCanvas');
+        const ctx = canvas.getContext('2d');
+        const statusEl = document.getElementById('status');
+        const ring = document.getElementById('ring');
+        const verifyBtn = document.getElementById('verifyBtn');
+        const retryBtn = document.getElementById('retryBtn');
+        const simBar = document.getElementById('simBar');
+        const simFill = document.getElementById('simFill');
+
+        // Config
+        const REQUIRED_FRAMES = 5;  // number of JPEG snapshots to capture & send
+        const STABLE_GATE = 10;     // face must be detected this many consecutive frames before capturing
+
+        let verifying = false;
+        let faceStableCount = 0;
+        let capturedBlobs = [];
+        let autoVerifyTimer = null;
+        let faceDetected = false;
+
+        function setStatus(msg, mood = '') {
+            statusEl.innerHTML = msg;
+            statusEl.className = mood;
+        }
+
+        /** Capture the current video frame as a JPEG Blob for server-side processing */
+        function captureFrameBlob() {
+            return new Promise(resolve => {
+                const w = video.videoWidth || 640;
+                const h = video.videoHeight || 480;
+                const tmp = document.createElement('canvas');
+                tmp.width = w; tmp.height = h;
+                tmp.getContext('2d').drawImage(video, 0, 0, w, h);
+                tmp.toBlob(blob => resolve(blob), 'image/jpeg', 0.90);
+            });
+        }
+
+        // MediaPipe FaceMesh is used purely for face presence detection
+        const faceMesh = new FaceMesh({
+            locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
+        });
+        faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: false,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        faceMesh.onResults(async results => {
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const found = results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0;
+
+            if (found) {
+                faceDetected = true;
+                faceStableCount++;
+                ring.classList.add('detected');
+                verifyBtn.disabled = false;
+
+                if (!verifying) {
+                    if (faceStableCount < STABLE_GATE) {
+                        setStatus(`👁 Hold still… (${faceStableCount}/${STABLE_GATE})`, '');
+                        ring.textContent = 'Stabilizing…';
+                    } else if (capturedBlobs.length < REQUIRED_FRAMES) {
+                        // Capture one JPEG every 3 frames for variety
+                        if (faceStableCount % 3 === 0) {
+                            const blob = await captureFrameBlob();
+                            if (blob) capturedBlobs.push(blob);
+                        }
+                        const n = capturedBlobs.length;
+                        setStatus(`📸 Capturing face samples… (${n}/${REQUIRED_FRAMES})`, 'warn');
+                        ring.textContent = `Frame ${n}/${REQUIRED_FRAMES}`;
+                    } else if (!autoVerifyTimer) {
+                        setStatus('✅ Samples captured — verifying identity…', 'ok');
+                        ring.textContent = 'Verifying…';
+                        autoVerifyTimer = setTimeout(() => sendVerify(), 300);
+                    }
+                }
+            } else {
+                faceDetected = false;
+                faceStableCount = 0;
+                if (!verifying && capturedBlobs.length < REQUIRED_FRAMES) {
+                    capturedBlobs = []; // reset collection if face is lost before enough frames
+                }
+                ring.textContent = 'Position face here';
+                ring.classList.remove('detected');
+                verifyBtn.disabled = true;
+                if (!verifying) setStatus('👁 Look directly at the camera', '');
+                clearTimeout(autoVerifyTimer);
+                autoVerifyTimer = null;
+            }
+        });
+
+        const camera = new Camera(video, {
+            onFrame: async () => { await faceMesh.send({ image: video }); },
+            width: 640, height: 480
+        });
+        camera.start()
+            .then(() => setStatus('👁 Look directly at the camera', ''))
+            .catch(e => setStatus('❌ Camera error: ' + e.message, 'err'));
+
+        function manualVerify() {
+            if (capturedBlobs.length >= REQUIRED_FRAMES) {
+                sendVerify();
+            } else if (faceDetected) {
+                setStatus('⏳ Still capturing samples, please wait…', 'warn');
+            }
+        }
+
+        async function sendVerify() {
+            if (verifying) return;
+            if (capturedBlobs.length < REQUIRED_FRAMES) {
+                setStatus('⏳ Not enough frames yet. Keep your face in view.', 'warn');
+                return;
+            }
+            verifying = true;
+            clearTimeout(autoVerifyTimer);
+            autoVerifyTimer = null;
+            verifyBtn.disabled = true;
+            setStatus('🔍 Verifying identity… please wait', 'warn');
+            ring.textContent = 'Checking…';
+
+            try {
+                // Send captured JPEG frames as multipart — server processes via its own
+                // MediaPipe pipeline (same as enrolled photos) for accurate matching
+                const form = new FormData();
+                capturedBlobs.forEach((blob, i) => form.append('frames[]', blob, `frame${i}.jpg`));
+
+                const res = await fetch('/staff_face_verify_image', {
+                    method: 'POST',
+                    body: form
+                });
+                const data = await res.json();
+                const sim = data.similarity || 0;
+                simBar.style.display = '';
+                simFill.style.width = Math.min(sim, 100) + '%';
+
+                if (data.verified) {
+                    setStatus(`✅ Identity verified! (${sim}% match) Logging you in…`, 'ok');
+                    ring.textContent = '✅ Verified';
+                    setTimeout(() => window.location.href = data.redirect, 1200);
+                } else {
+                    setStatus(`❌ ${data.error || 'Face not recognized'} (${sim}% match)`, 'err');
+                    ring.textContent = 'Not recognized';
+                    ring.classList.remove('detected');
+                    retryBtn.style.display = '';
+                    verifying = false;
+                }
+            } catch (e) {
+                setStatus('❌ Network error. Please try again.', 'err');
+                retryBtn.style.display = '';
+                verifying = false;
+            }
+        }
+
+        function resetVerify() {
+            verifying = false;
+            faceStableCount = 0;
+            capturedBlobs = [];
+            autoVerifyTimer = null;
+            retryBtn.style.display = 'none';
+            simBar.style.display = 'none';
+            verifyBtn.disabled = true;
+            ring.textContent = 'Position face here';
+            ring.classList.remove('detected');
+            setStatus('👁 Look directly at the camera', '');
+        }
+    </script>
+</body>
+
+</html>

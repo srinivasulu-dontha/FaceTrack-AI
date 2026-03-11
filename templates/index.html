@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ institution_name }} — Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      height: 100%;
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #f1f5f9;
+    }
+
+    /* ── Navbar ── */
+    .top-nav {
+      background: linear-gradient(90deg, #1e293b 0%, #1e40af 100%);
+      padding: .85rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 16px rgba(0, 0, 0, .5);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .top-nav .brand {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #f8fafc;
+      letter-spacing: .5px;
+      text-decoration: none;
+    }
+
+    .top-nav .brand span {
+      color: #60a5fa;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .nav-links a {
+      padding: .4rem .9rem;
+      border-radius: 7px;
+      font-size: .82rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      text-decoration: none;
+      transition: background .2s, color .2s;
+    }
+
+    .nav-links a:hover {
+      background: rgba(255, 255, 255, .12);
+      color: #fff;
+    }
+
+    .nav-links .logout-btn {
+      color: #fca5a5;
+    }
+
+    .top-nav .clock {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #38bdf8;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Page wrapper ── */
+    .page {
+      padding: 2rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* ── Stats row ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      background: #1e293b;
+      border-radius: 14px;
+      padding: 1.25rem 1.5rem;
+      border: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      transition: transform .2s;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-3px);
+    }
+
+    .stat-icon {
+      font-size: 2rem;
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .si-blue {
+      background: rgba(59, 130, 246, .18);
+    }
+
+    .si-green {
+      background: rgba(34, 197, 94, .18);
+    }
+
+    .si-purple {
+      background: rgba(168, 85, 247, .18);
+    }
+
+    .si-red {
+      background: rgba(239, 68, 68, .18);
+    }
+
+    .stat-info .num {
+      font-size: 1.8rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .stat-info .lbl {
+      font-size: .72rem;
+      color: #64748b;
+      margin-top: .2rem;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+    }
+
+    .n-blue {
+      color: #60a5fa;
+    }
+
+    .n-green {
+      color: #4ade80;
+    }
+
+    .n-purple {
+      color: #c084fc;
+    }
+
+    .n-red {
+      color: #f87171;
+    }
+
+    /* ── Two-column grid ── */
+    .dash-grid {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 1.5rem;
+    }
+
+    @media(max-width:768px) {
+      .dash-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stats-row {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    /* ── Cards ── */
+    .card-dark {
+      background: #1e293b;
+      border-radius: 14px;
+      padding: 1.5rem;
+      border: 1px solid #334155;
+    }
+
+    .card-dark h5 {
+      font-size: .85rem;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 1.25rem;
+    }
+
+    /* Quick action buttons */
+    .action-btn {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      padding: .75rem 1rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: .88rem;
+      text-decoration: none;
+      color: #f1f5f9;
+      transition: all .2s;
+      border: 1px solid;
+      margin-bottom: .6rem;
+    }
+
+    .ab-blue {
+      border-color: #1d4ed8;
+      background: rgba(29, 78, 216, .2);
+    }
+
+    .ab-blue:hover {
+      background: rgba(29, 78, 216, .4);
+      color: #f1f5f9;
+    }
+
+    .ab-teal {
+      border-color: #0d9488;
+      background: rgba(13, 148, 136, .2);
+    }
+
+    .ab-teal:hover {
+      background: rgba(13, 148, 136, .4);
+      color: #f1f5f9;
+    }
+
+    .ab-green {
+      border-color: #16a34a;
+      background: rgba(22, 163, 74, .2);
+    }
+
+    .ab-green:hover {
+      background: rgba(22, 163, 74, .4);
+      color: #f1f5f9;
+    }
+
+    .ab-amber {
+      border-color: #b45309;
+      background: rgba(180, 83, 9, .2);
+    }
+
+    .ab-amber:hover {
+      background: rgba(180, 83, 9, .4);
+      color: #f1f5f9;
+    }
+
+    .ab-indigo {
+      border-color: #4338ca;
+      background: rgba(67, 56, 202, .2);
+    }
+
+    .ab-indigo:hover {
+      background: rgba(67, 56, 202, .4);
+      color: #f1f5f9;
+    }
+
+    /* Train section */
+    .progress-dark {
+      height: 28px;
+      background: #0f172a;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .progress-dark .bar {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #6366f1);
+      border-radius: 8px;
+      transition: width .5s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .8rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    #trainMsg {
+      margin-top: .5rem;
+      font-size: .8rem;
+      color: #64748b;
+    }
+
+    /* Chart */
+    #attendanceChart {
+      max-height: 280px;
+    }
+
+    /* Absentee alert badge */
+    .alert-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      background: rgba(239, 68, 68, .12);
+      border: 1px solid rgba(239, 68, 68, .25);
+      color: #f87171;
+      border-radius: 8px;
+      padding: .35rem .7rem;
+      font-size: .78rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background .2s;
+    }
+
+    .alert-badge:hover {
+      background: rgba(239, 68, 68, .22);
+      color: #f87171;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Navbar -->
+  <nav class="top-nav">
+    <a href="/" class="brand">🎓 {{ institution_name.split()[:2]|join(' ') if institution_name else 'Digital Attendance'
+      }}</a>
+    <div class="nav-links">
+      <a href="/add_student">➕ Add Student</a>
+      <a href="/manage_students">👥 Students</a>
+      <a href="/mark_attendance">📷 Mark Attendance</a>
+      <a href="/attendance_record">📋 Records</a>
+      <a href="/admin/staff">🔐 Staff Accounts</a>
+      <a href="/settings">⚙️ Settings</a>
+      <span style="color:#94a3b8;font-size:.78rem;padding:.3rem .6rem">👤 {{ current_user.name if current_user else
+        'Admin' }}</span>
+      <a href="/logout" class="logout-btn">🔓 Logout</a>
+    </div>
+    <div class="clock" id="liveClock">--:--:--</div>
+  </nav>
+
+  <div class="page">
+
+    <!-- Main Grid -->
+    <div class="dash-grid">
+
+      <!-- Left: Quick Actions + Train -->
+      <div class="left-panel">
+        <div class="card-dark" style="margin-bottom:1.5rem;">
+          <h5>QUICK ACTIONS</h5>
+          <a class="action-btn ab-indigo" href="/add_student">➕ &ensp;Register Student</a>
+          <a class="action-btn ab-teal" href="/manage_students">👥 &ensp;Manage Students</a>
+          <a class="action-btn ab-green" href="/mark_attendance">📷 &ensp;Mark Attendance</a>
+          <a class="action-btn ab-amber" href="/attendance_record">📋 &ensp;View Records</a>
+          <a class="action-btn ab-indigo" style="margin-bottom: 0;" href="/settings">⚙️ &ensp;Settings</a>
+        </div>
+
+        <div class="card-dark">
+          <h5>TRAIN MODEL</h5>
+          <div class="progress-dark">
+            <div class="bar" id="trainProgress" style="width:0%">0%</div>
+          </div>
+          <div id="trainMsg">Not trained yet.</div>
+          <button id="trainBtn" class="btn btn-primary mt-3 w-100"
+            style="background: #2563eb; border: none; border-radius:8px;font-weight:600; padding: 0.75rem;">⚡ Start
+            Training</button>
+        </div>
+      </div>
+
+      <!-- Right: Stats + Chart -->
+      <div class="right-panel" style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <!-- Stats Row -->
+        <div class="stats-row" style="margin-bottom: 0;">
+          <a class="stat-card" href="/manage_students">
+            <div class="stat-icon si-blue">👥</div>
+            <div class="stat-info">
+              <div class="num n-blue" id="statStudents">—</div>
+              <div class="lbl">Total Students</div>
+            </div>
+          </a>
+          <a class="stat-card" href="/attendance_record?period=daily">
+            <div class="stat-icon si-green">✅</div>
+            <div class="stat-info">
+              <div class="num n-green" id="statToday">—</div>
+              <div class="lbl">Present Today</div>
+            </div>
+          </a>
+          <a class="stat-card" href="/attendance_record">
+            <div class="stat-icon si-purple">📊</div>
+            <div class="stat-info">
+              <div class="num n-purple" id="statTotal">—</div>
+              <div class="lbl">Total Records</div>
+            </div>
+          </a>
+          <a class="stat-card" href="/manage_students" id="absenteeCard" style="display:none;">
+            <div class="stat-icon si-red">⚠️</div>
+            <div class="stat-info">
+              <div class="num n-red" id="statAbsentee">—</div>
+              <div class="lbl">At-Risk Students</div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Chart -->
+        <div class="card-dark" style="flex-grow: 1; display: flex; flex-direction: column; min-height: 300px;">
+          <h5>ATTENDANCE — LAST
+            30 DAYS</h5>
+          <div style="flex-grow: 1; position: relative;">
+            <canvas id="attendanceChart" style="position: absolute; top:0; left:0; width:100%; height:100%;"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+  <script>
+    // Live clock
+    function updateClock() {
+      document.getElementById('liveClock').textContent =
+        new Date().toLocaleTimeString('en-IN', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    setInterval(updateClock, 1000); updateClock();
+
+    // Stats cards
+    async function loadSummary() {
+      try {
+        const d = await fetch('/dashboard_summary').then(r => r.json());
+        document.getElementById('statStudents').textContent = d.total_students;
+        document.getElementById('statToday').textContent = d.today_count;
+        document.getElementById('statTotal').textContent = d.total_records;
+        // Absentee card
+        if (d.absentee_count > 0) {
+          document.getElementById('statAbsentee').textContent = d.absentee_count;
+          document.getElementById('absenteeCard').style.display = '';
+        }
+      } catch (e) { }
+    }
+    loadSummary();
+    setInterval(loadSummary, 20000);
+  </script>
+</body>
+
+</html>

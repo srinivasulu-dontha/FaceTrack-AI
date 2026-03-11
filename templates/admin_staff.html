@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Staff Management — FaceTrack AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        body {
+            background: #0f172a;
+            color: #f1f5f9;
+            font-family: 'Inter', 'Segoe UI', sans-serif
+        }
+
+        .top-bar {
+            background: linear-gradient(90deg, #1e293b, #1e40af);
+            padding: .85rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, .4)
+        }
+
+        .top-bar h4 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #f8fafc
+        }
+
+        .page {
+            padding: 1.75rem 2rem;
+            max-width: 1100px;
+            margin: 0 auto
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: .75rem;
+            margin-bottom: 1rem
+        }
+
+        .tbl-wrap {
+            background: #1e293b;
+            border-radius: 14px;
+            border: 1px solid #334155;
+            overflow: hidden
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .875rem
+        }
+
+        thead th {
+            background: #0f172a;
+            padding: .75rem 1rem;
+            color: #64748b;
+            font-size: .72rem;
+            text-transform: uppercase;
+            letter-spacing: .7px;
+            font-weight: 600;
+            border-bottom: 1px solid #334155
+        }
+
+        tbody tr {
+            border-bottom: 1px solid rgba(51, 65, 85, .5);
+            transition: background .15s
+        }
+
+        tbody tr:last-child {
+            border-bottom: none
+        }
+
+        tbody tr:hover {
+            background: rgba(59, 130, 246, .06)
+        }
+
+        tbody td {
+            padding: .65rem 1rem;
+            color: #e2e8f0;
+            vertical-align: middle
+        }
+
+        .badge-role {
+            padding: .2rem .6rem;
+            border-radius: 6px;
+            font-size: .72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px
+        }
+
+        .role-admin {
+            background: rgba(139, 92, 246, .2);
+            color: #c4b5fd
+        }
+
+        .role-staff {
+            background: rgba(6, 182, 212, .15);
+            color: #67e8f9
+        }
+
+        .badge-face {
+            padding: .2rem .55rem;
+            border-radius: 6px;
+            font-size: .72rem;
+            font-weight: 600
+        }
+
+        .face-yes {
+            background: rgba(34, 197, 94, .12);
+            color: #86efac
+        }
+
+        .face-no {
+            background: rgba(239, 68, 68, .12);
+            color: #f87171
+        }
+
+        .badge-status {
+            padding: .2rem .55rem;
+            border-radius: 6px;
+            font-size: .72rem;
+            font-weight: 600
+        }
+
+        .st-active {
+            background: rgba(34, 197, 94, .12);
+            color: #86efac
+        }
+
+        .st-inactive {
+            background: rgba(100, 116, 139, .12);
+            color: #94a3b8
+        }
+
+        .action-group {
+            display: flex;
+            gap: .4rem
+        }
+
+        .no-record {
+            text-align: center;
+            padding: 3rem;
+            color: #475569
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .7);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center
+        }
+
+        .modal-overlay.open {
+            display: flex
+        }
+
+        .modal-box {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 2rem;
+            width: 440px;
+            max-width: 95vw;
+            animation: slideUp .3s cubic-bezier(.16, 1, .3, 1)
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0
+            }
+
+            to {
+                transform: none;
+                opacity: 1
+            }
+        }
+
+        .modal-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #f8fafc;
+            margin-bottom: 1.25rem
+        }
+
+        .form-group {
+            margin-bottom: .9rem
+        }
+
+        .form-group label {
+            display: block;
+            font-size: .72rem;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: .7px;
+            margin-bottom: .35rem
+        }
+
+        .form-input {
+            width: 100%;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #f1f5f9;
+            border-radius: 8px;
+            padding: .55rem .8rem;
+            font-size: .88rem;
+            outline: none;
+            transition: border-color .2s;
+            font-family: inherit
+        }
+
+        .form-input:focus {
+            border-color: #3b82f6
+        }
+
+        .form-row2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: .75rem
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: .6rem;
+            justify-content: flex-end;
+            margin-top: 1.25rem
+        }
+
+        .err-msg {
+            color: #f87171;
+            font-size: .8rem;
+            margin-bottom: .5rem;
+            display: none
+        }
+    </style>
+</head>
+
+<body>
+    <div class="top-bar">
+        <div style="display:flex;align-items:center;gap:.75rem">
+            <a href="/" class="btn btn-sm btn-outline-light" style="border-radius:7px">← Dashboard</a>
+            <h4>👥 Staff Management</h4>
+        </div>
+        <div style="display:flex;align-items:center;gap:.5rem">
+            <span style="font-size:.8rem;color:#94a3b8">Logged in as <strong style="color:#60a5fa">{{ current_user.name
+                    }}</strong></span>
+            <button class="btn btn-sm btn-success" style="border-radius:7px;font-weight:600"
+                onclick="document.getElementById('addModal').classList.add('open')">➕ Add User</button>
+        </div>
+    </div>
+
+    <div class="page">
+        <div class="toolbar">
+            <div style="font-size:.82rem;color:#64748b">Total: <strong style="color:#60a5fa">{{ staff_users|length
+                    }}</strong> users</div>
+        </div>
+
+        <div class="tbl-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Username</th>
+                        <th>Full Name</th>
+                        <th>Role</th>
+                        <th>Face Enrolled</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in staff_users %}
+                    <tr id="urow-{{ u[0] }}">
+                        <td>{{ loop.index }}</td>
+                        <td><code style="color:#93c5fd;font-size:.82rem">{{ u[1] }}</code></td>
+                        <td style="font-weight:600;color:#f1f5f9">{{ u[2] }}</td>
+                        <td><span class="badge-role role-{{ u[3] }}">{{ u[3] }}</span></td>
+                        <td><span class="badge-face {{ 'face-yes' if u[4] else 'face-no' }}">{{ '✅ Enrolled' if u[4]
+                                else '❌ Not enrolled' }}</span></td>
+                        <td><span class="badge-status {{ 'st-active' if u[6] else 'st-inactive' }}">{{ 'Active' if u[6]
+                                else 'Inactive' }}</span></td>
+                        <td style="color:#64748b;font-size:.8rem">{{ u[5][:10] if u[5] else '—' }}</td>
+                        <td>
+                            <div class="action-group">
+                                <a href="/admin/staff/{{ u[0] }}/enroll_face" class="btn btn-sm btn-outline-info"
+                                    style="border-radius:6px;font-size:.73rem" title="Enroll Face">📷 Face</a>
+                                <button class="btn btn-sm btn-outline-warning"
+                                    style="border-radius:6px;font-size:.73rem" data-uid="{{ u[0] }}"
+                                    data-name="{{ u[2] }}" data-active="{{ u[6] }}"
+                                    onclick="openEdit(this.dataset.uid, this.dataset.name, this.dataset.active)"
+                                    title="Edit">✏️</button>
+                                <button class="btn btn-sm btn-outline-danger" style="border-radius:6px;font-size:.73rem"
+                                    data-uid="{{ u[0] }}" data-name="{{ u[2] }}"
+                                    onclick="deleteUser(this.dataset.uid, this.dataset.name)" title="Delete">🗑</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="no-record">No staff accounts yet. Click "Add User" to create one.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add Modal -->
+    <div class="modal-overlay" id="addModal">
+        <div class="modal-box">
+            <div class="modal-title">➕ Add New User</div>
+            <div class="form-row2">
+                <div class="form-group"><label>Username</label><input type="text" class="form-input" id="addUsername"
+                        placeholder="e.g. john_doe"></div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <select class="form-input" id="addRole">
+                        <option value="staff">Staff</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group"><label>Full Name</label><input type="text" class="form-input" id="addName"
+                    placeholder="e.g. John Doe"></div>
+            <div class="form-group"><label>Password</label><input type="password" class="form-input" id="addPassword"
+                    placeholder="Set a strong password"></div>
+            <div class="err-msg" id="addErr"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" style="border-radius:7px"
+                    onclick="document.getElementById('addModal').classList.remove('open')">Cancel</button>
+                <button class="btn btn-primary btn-sm" style="border-radius:7px;font-weight:600" onclick="submitAdd()">✅
+                    Create User</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal-box">
+            <div class="modal-title">✏️ Edit User</div>
+            <input type="hidden" id="editId">
+            <div class="form-group"><label>Full Name</label><input type="text" class="form-input" id="editName"></div>
+            <div class="form-group"><label>New Password <span style="color:#475569;font-weight:400">(leave blank to
+                        keep)</span></label><input type="password" class="form-input" id="editPassword"
+                    placeholder="Enter new password or leave blank"></div>
+            <div class="form-group" style="display:flex;align-items:center;gap:.75rem">
+                <label style="margin:0">Active Account</label>
+                <input type="checkbox" id="editActive" style="width:18px;height:18px;cursor:pointer">
+            </div>
+            <div class="err-msg" id="editErr"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" style="border-radius:7px"
+                    onclick="document.getElementById('editModal').classList.remove('open')">Cancel</button>
+                <button class="btn btn-primary btn-sm" style="border-radius:7px;font-weight:600"
+                    onclick="submitEdit()">💾 Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openEdit(id, name, active) {
+            document.getElementById('editId').value = id;
+            document.getElementById('editName').value = name;
+            document.getElementById('editPassword').value = '';
+            document.getElementById('editActive').checked = (active === '1' || active === 'True');
+            document.getElementById('editErr').style.display = 'none';
+            document.getElementById('editModal').classList.add('open');
+        }
+
+        async function submitAdd() {
+            const username = document.getElementById('addUsername').value.trim();
+            const full_name = document.getElementById('addName').value.trim();
+            const role = document.getElementById('addRole').value;
+            const password = document.getElementById('addPassword').value.trim();
+            const errEl = document.getElementById('addErr');
+            errEl.style.display = 'none';
+            if (!username || !full_name || !password) { errEl.textContent = 'All fields required'; errEl.style.display = ''; return; }
+            const res = await fetch('/admin/staff/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, full_name, role, password }) });
+            const data = await res.json();
+            if (data.error) { errEl.textContent = data.error; errEl.style.display = ''; return; }
+            Swal.fire({ title: '✅ User Created', text: `${full_name} (${role}) added successfully.`, icon: 'success', background: '#1e293b', color: '#f1f5f9', timer: 1800, showConfirmButton: false })
+                .then(() => window.location.reload());
+        }
+
+        async function submitEdit() {
+            const id = document.getElementById('editId').value;
+            const full_name = document.getElementById('editName').value.trim();
+            const password = document.getElementById('editPassword').value.trim();
+            const is_active = document.getElementById('editActive').checked ? 1 : 0;
+            const errEl = document.getElementById('editErr');
+            errEl.style.display = 'none';
+            if (!full_name) { errEl.textContent = 'Name required'; errEl.style.display = ''; return; }
+            const body = { full_name, is_active };
+            if (password) body.password = password;
+            const res = await fetch('/admin/staff/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const data = await res.json();
+            if (data.error) { errEl.textContent = data.error; errEl.style.display = ''; return; }
+            Swal.fire({ title: 'Updated', text: 'User info saved.', icon: 'success', background: '#1e293b', color: '#f1f5f9', timer: 1500, showConfirmButton: false })
+                .then(() => window.location.reload());
+        }
+
+        function deleteUser(id, name) {
+            Swal.fire({ title: 'Delete User?', text: `Remove "${name}" permanently?`, icon: 'warning', background: '#1e293b', color: '#f1f5f9', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#334155', confirmButtonText: 'Yes, Delete' })
+                .then(r => {
+                    if (!r.isConfirmed) return;
+                    fetch('/admin/staff/' + id, { method: 'DELETE' }).then(r => r.json()).then(d => {
+                        if (d.deleted) window.location.reload();
+                        else Swal.fire({ title: 'Error', text: d.error || 'Failed', icon: 'error', background: '#1e293b', color: '#f1f5f9' });
+                    });
+                });
+        }
+
+        // Close modals on overlay click
+        ['addModal', 'editModal'].forEach(id => {
+            document.getElementById(id).addEventListener('click', function (e) { if (e.target === this) this.classList.remove('open'); });
+        });
+    </script>
+</body>
+
+</html>
