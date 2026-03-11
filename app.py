@@ -7,7 +7,7 @@ import json
 import shutil
 import hashlib
 from flask import Flask, render_template, request, jsonify, send_file, abort, session, redirect, url_for
-
+#i am pandu
 from model import train_model_background, extract_embedding_for_image, extract_all_embeddings, MODEL_PATH
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
