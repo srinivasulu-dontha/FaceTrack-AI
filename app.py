@@ -269,7 +269,7 @@ def staff_face_verify():
     # --- Multi-sample voting ---
     # Threshold raised to 0.92 for tighter person-specific matching.
     # Require at least ceil(len/2)+1 samples to pass (majority) with a minimum of 3.
-    THRESHOLD = 0.92
+    THRESHOLD = 0.90
     MIN_VOTES_REQUIRED = max(3, (len(query_embeddings) // 2) + 1)
     passed = 0
     best_sim = 0.0
@@ -282,7 +282,7 @@ def staff_face_verify():
         if sim < worst_sim:
             worst_sim = sim
         # Hard reject: if any sample scores very low the face is clearly different
-        if sim < 0.70:
+        if sim < 0.60:
             log_audit("face_verify_fail", f"Staff '{user[1]}' hard-rejected (sim={sim:.2f})")
             return jsonify({"verified": False,
                             "similarity": round(sim * 100, 1),
@@ -341,7 +341,7 @@ def staff_face_verify_image():
         try:
             image_bytes = img_file.read()
             verified, sim_pct = verify_staff_with_lbph(image_bytes, staff_folder,
-                                                     max_train=10, max_distance=80.0)
+                                                     max_train=30, max_distance=80.0)
             if sim_pct == 0.0 and not verified:
                 # No face detected in this frame — skip (not penalise)
                 continue
@@ -361,7 +361,8 @@ def staff_face_verify_image():
 
     avg_sim = sum(all_sims) / len(all_sims) if all_sims else 0.0
     # Require majority of valid frames to pass Cosine check
-    MIN_VOTES = max(2, (total_valid // 2) + 1)
+    # Fix: If total_valid is 1, MIN_VOTES should be 1, not 2.
+    MIN_VOTES = max(1, (total_valid // 2) + 1)
 
     app.logger.info(f"Cosine verify: user={user[1]} passed={passed}/{total_valid} avg_sim={avg_sim:.1f} best={best_sim:.1f}")
 

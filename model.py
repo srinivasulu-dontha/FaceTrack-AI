@@ -175,6 +175,8 @@ def _get_cached_lbph(folder_path, max_images):
     if not image_files:
         return None
 
+    # Use more images for better LBPH training (up to 30)
+    max_images = max(max_images, 30)
     step = max(1, len(image_files) // max_images)
     sampled = image_files[::step][:max_images]
 
@@ -293,21 +295,40 @@ def _get_face_cascade():
 
 def _extract_face_roi(bgr_image, target_size=(100, 100)):
     """
-    Detect and crop the face ROI from a BGR image, resize to target_size.
+    Detect and crop the face ROI from a BGR image using MediaPipe, resize to target_size.
     Returns a grayscale face ROI or None if no face detected.
     """
-    cascade = _get_face_cascade()
-    gray = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2GRAY)
+    detector = _get_face_detector()
+    h, w = bgr_image.shape[:2]
+    rgb = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
+    results = detector.process(rgb)
+
+    if not results.detections:
+        return None
+
+    # Pick the largest detection
+    best_det = sorted(results.detections, key=lambda d: d.proportions[0] if hasattr(d, 'proportions') else 0, reverse=True)[0]
+    bbox = best_det.location_data.relative_bounding_box
+    
+    xmin = max(0, int(bbox.xmin * w))
+    ymin = max(0, int(bbox.ymin * h))
+    width = int(bbox.width * w)
+    height = int(bbox.height * h)
+    
+    xmax = min(w, xmin + width)
+    ymax = min(h, ymin + height)
+
+    if xmax <= xmin or ymax <= ymin:
+        return None
+
+    roi = bgr_image[ymin:ymax, xmin:xmax]
+    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    
     # Apply CLAHE for lighting normalisation
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     gray = clahe.apply(gray)
-    faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
-    if len(faces) == 0:
-        return None
-    # Pick the largest face
-    x, y, w, h = sorted(faces, key=lambda f: f[2] * f[3], reverse=True)[0]
-    roi = gray[y:y + h, x:x + w]
-    return cv2.resize(roi, target_size)
+    
+    return cv2.resize(gray, target_size)
 
 
 def verify_staff_with_lbph(live_image_bytes, user_folder, max_train=10, max_distance=45.0):
