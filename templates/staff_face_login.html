@@ -294,13 +294,36 @@
 
         // Config
         const REQUIRED_FRAMES = 5;  // number of JPEG snapshots to capture & send
-        const STABLE_GATE = 10;     // face must be detected this many consecutive frames before capturing
+
+        // Liveness Config
+        const LEFT_EYE = [33, 160, 158, 133, 153, 144];
+        const RIGHT_EYE = [362, 385, 387, 263, 373, 380];
+
+        function dist3(p1, p2) {
+            const dx = p1.x - p2.x, dy = p1.y - p2.y, dz = (p1.z || 0) - (p2.z || 0);
+            return Math.sqrt(dx * dx + dy * dy + dz * dz);
+        }
+
+        function getEAR(lm, indices) {
+            const [i0, i1, i2, i3, i4, i5] = indices;
+            const h1 = dist3(lm[i1], lm[i5]);
+            const h2 = dist3(lm[i2], lm[i4]);
+            const w = dist3(lm[i0], lm[i3]);
+            return (h1 + h2) / (2.0 * w);
+        }
+
+        let livenessPhase = "GATHERING"; // GATHERING -> WAITING -> VERIFIED
+        let earHistory = [];
+        let mouthWidthHistory = [];
+        let baselineEAR = 0.0;
+        let baselineMouthWidth = 0.0;
 
         let verifying = false;
         let faceStableCount = 0;
         let capturedBlobs = [];
         let autoVerifyTimer = null;
         let faceDetected = false;
+        let hasFailed = false;
 
         function setStatus(msg, mood = '') {
             statusEl.innerHTML = msg;
@@ -337,35 +360,78 @@
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
             const found = results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0;
+            if (hasFailed) return; // Stop all processing if we failed once
 
             if (found) {
                 faceDetected = true;
-                faceStableCount++;
                 ring.classList.add('detected');
-                verifyBtn.disabled = false;
 
                 if (!verifying) {
-                    if (faceStableCount < STABLE_GATE) {
-                        setStatus(`👁 Hold still… (${faceStableCount}/${STABLE_GATE})`, '');
+                    const lm = results.multiFaceLandmarks[0];
+                    const leftEAR = getEAR(lm, LEFT_EYE);
+                    const rightEAR = getEAR(lm, RIGHT_EYE);
+                    const ear = (leftEAR + rightEAR) / 2;
+
+                    const mouthWidthRaw = dist3(lm[78], lm[308]);
+                    const eyeDist = dist3(lm[33], lm[263]);
+                    const mouthWidth = eyeDist > 0 ? mouthWidthRaw / eyeDist : 0;
+
+                    if (livenessPhase === "GATHERING") {
+                        earHistory.push(ear);
+                        mouthWidthHistory.push(mouthWidth);
+                        setStatus(`⏳ Scanning baselines (${earHistory.length}/10)…`, '');
                         ring.textContent = 'Stabilizing…';
-                    } else if (capturedBlobs.length < REQUIRED_FRAMES) {
-                        // Capture one JPEG every 3 frames for variety
-                        if (faceStableCount % 3 === 0) {
-                            const blob = await captureFrameBlob();
-                            if (blob) capturedBlobs.push(blob);
+
+                        if (earHistory.length >= 10) {
+                            const sortedEAR = [...earHistory].sort((a,b) => a - b);
+                            baselineEAR = sortedEAR[Math.floor(sortedEAR.length / 2)];
+                            
+                            const sortedMouth = [...mouthWidthHistory].sort((a,b) => a - b);
+                            baselineMouthWidth = sortedMouth[Math.floor(sortedMouth.length / 2)];
+                            livenessPhase = "WAITING";
                         }
-                        const n = capturedBlobs.length;
-                        setStatus(`📸 Capturing face samples… (${n}/${REQUIRED_FRAMES})`, 'warn');
-                        ring.textContent = `Frame ${n}/${REQUIRED_FRAMES}`;
-                    } else if (!autoVerifyTimer) {
-                        setStatus('✅ Samples captured — verifying identity…', 'ok');
-                        ring.textContent = 'Verifying…';
-                        autoVerifyTimer = setTimeout(() => sendVerify(), 300);
+                    } else if (livenessPhase === "WAITING") {
+                        // Check for natural blink
+                        if ((baselineEAR - ear) > 0.08) {
+                            livenessPhase = "VERIFIED";
+                        }
+                        // Check for light smile/talking
+                        if (mouthWidth > baselineMouthWidth * 1.15) {
+                            livenessPhase = "VERIFIED";
+                        }
+                        
+                        if (livenessPhase === "WAITING") {
+                            setStatus('👁 Please blink or smile naturally', 'warn');
+                            ring.textContent = 'Liveness Check';
+                            verifyBtn.disabled = true;
+                        }
+                    }
+
+                    if (livenessPhase === "VERIFIED") {
+                        verifyBtn.disabled = false;
+                        if (capturedBlobs.length < REQUIRED_FRAMES) {
+                            // Capture one JPEG every 3 frames for variety
+                            faceStableCount++;
+                            if (faceStableCount % 3 === 0) {
+                                const blob = await captureFrameBlob();
+                                if (blob) capturedBlobs.push(blob);
+                            }
+                            const n = capturedBlobs.length;
+                            setStatus(`📸 Liveness confirmed! Capturing samples… (${n}/${REQUIRED_FRAMES})`, 'ok');
+                            ring.textContent = `Frame ${n}/${REQUIRED_FRAMES}`;
+                        } else if (!autoVerifyTimer) {
+                            setStatus('✅ Samples captured — verifying identity…', 'ok');
+                            ring.textContent = 'Verifying…';
+                            autoVerifyTimer = setTimeout(() => sendVerify(), 300);
+                        }
                     }
                 }
             } else {
                 faceDetected = false;
                 faceStableCount = 0;
+                livenessPhase = "GATHERING";
+                earHistory = [];
+                mouthWidthHistory = [];
                 if (!verifying && capturedBlobs.length < REQUIRED_FRAMES) {
                     capturedBlobs = []; // reset collection if face is lost before enough frames
                 }
@@ -427,9 +493,11 @@
                     ring.textContent = '✅ Verified';
                     setTimeout(() => window.location.href = data.redirect, 1200);
                 } else {
+                    hasFailed = true; // Stop scanning
                     setStatus(`❌ ${data.error || 'Face not recognized'} (${sim}% match)`, 'err');
                     ring.textContent = 'Not recognized';
                     ring.classList.remove('detected');
+                    verifyBtn.style.display = 'none'; // Hide verify button
                     retryBtn.style.display = '';
                     verifying = false;
                 }
@@ -442,10 +510,15 @@
 
         function resetVerify() {
             verifying = false;
+            hasFailed = false;
             faceStableCount = 0;
+            livenessPhase = "GATHERING";
+            earHistory = [];
+            mouthWidthHistory = [];
             capturedBlobs = [];
             autoVerifyTimer = null;
             retryBtn.style.display = 'none';
+            verifyBtn.style.display = ''; // Show verify button again
             simBar.style.display = 'none';
             verifyBtn.disabled = true;
             ring.textContent = 'Position face here';

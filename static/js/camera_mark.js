@@ -21,12 +21,12 @@ let faceMesh = null;
 const LEFT_EYE = [33, 160, 158, 133, 153, 144];
 const RIGHT_EYE = [362, 385, 387, 263, 373, 380];
 
-// ─── Thresholds (Strict Sequential Edition) ────────────────────────────────
-const LIVENESS_HISTORY_FRAMES = 20;       // Require 20 frames for a highly stable baseline
-const BLINK_DROP_THRESH = 0.14;           // Require a deep, deliberate eyelid closure (prevents squinting/looking down)
-const MIN_BLINK_FRAMES = 3;               // Require eyes to stay shut for at least 3 frames (eliminates multi-frame noise)
-const MAX_NOSE_MOVE_FOR_BLINK = 0.03;     // Much tighter vertical stability requirement to block photo wobbling
-const SMILE_STRETCH_RATIO = 1.25;         // Require a very wide, deliberate 25% smile (prevents normal talking from verifying)
+// ─── Thresholds (Optimized Sequential Edition) ─────────────────────────────
+const LIVENESS_HISTORY_FRAMES = 10;       // Require 10 frames (~1/3 second) for stable baseline
+const BLINK_DROP_THRESH = 0.08;           // Detect normal, natural blinks (vs deliberate squeezing)
+const MIN_BLINK_FRAMES = 1;               // Tolerate fast blinks (often only spanning 1-2 frames)
+const MAX_NOSE_MOVE_FOR_BLINK = 0.08;     // Permit slight human head motion/wobbling while blinking
+const SMILE_STRETCH_RATIO = 1.15;         // Permit a mild smile (15% wider) or talking to verify liveness
 
 // ─── Per-face liveness state ──────────────────────────────────────────────────
 let activeTracks = []; // Array of { id: number, centroid: {cx, cy}, state: object }
@@ -239,7 +239,7 @@ function drawFaceBox(lm, color, label) {
 function sendLandmarks(faceLandmarksList) {
   // faceLandmarksList: array of face landmark arrays (each element = one face)
   const faces = faceLandmarksList.map(lm =>
-    lm.slice(0, 468).map(pt => ({ x: pt.x, y: pt.y, z: pt.z || 0 }))
+    lm.slice(0, 478).map(pt => ({ x: pt.x, y: pt.y, z: pt.z || 0 }))
   );
   // Lock the status bar so per-frame hints don't overwrite the result
   statusLocked = true;
@@ -486,8 +486,8 @@ stopMarkBtn.addEventListener("click", async () => {
     markVideo.srcObject.getTracks().forEach(t => t.stop());
     markVideo.srcObject = null;
   }
-  // Clear all liveness states
-  Object.keys(faceStates).forEach(k => delete faceStates[k]);
+  // Clear all tracking states
+  activeTracks = [];
   cooldown.clear();
   sessionRecognizedRolls.clear();
   startMarkBtn.disabled = false;

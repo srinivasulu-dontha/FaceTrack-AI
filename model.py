@@ -29,10 +29,12 @@ def _extract_landmark_embedding(bgr_image, face_mesh):
     # Build raw coordinate array
     pts = np.array([[lm.x, lm.y, lm.z] for lm in landmarks], dtype=np.float32)  # (468, 3)
 
-    # Normalize: mean center and scale by max absolute distance
+    # Normalize: mean center and scale by max absolute distance (X and Y only for stability)
     mean = pts.mean(axis=0)
     pts = pts - mean
-    max_dist = np.max(np.abs(pts))
+    # Robust normalization: use only X and Y range to define scale. 
+    # Z-axis in MediaPipe is sensitive to different versions/platforms.
+    max_dist = np.max(np.abs(pts[:, :2])) 
     if max_dist > 0:
         pts = pts / max_dist
 
@@ -49,7 +51,7 @@ def _get_face_mesh():
         _thread_local.face_mesh = mp.solutions.face_mesh.FaceMesh(
             static_image_mode=True,
             max_num_faces=5,
-            refine_landmarks=False,
+            refine_landmarks=True,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
         )
@@ -60,7 +62,7 @@ def _get_face_detector():
     """Return a per-thread MediaPipe FaceDetection instance (for bounding boxes)."""
     if not hasattr(_thread_local, 'detector'):
         _thread_local.detector = mp.solutions.face_detection.FaceDetection(
-            model_selection=1, min_detection_confidence=0.5
+            model_selection=0, min_detection_confidence=0.5
         )
     return _thread_local.detector
 
@@ -88,7 +90,7 @@ def extract_all_embeddings(stream_or_bytes):
         pts = np.array([[lm.x, lm.y, lm.z] for lm in face_lms.landmark], dtype=np.float32)
         mean = pts.mean(axis=0)
         pts = pts - mean
-        max_dist = np.max(np.abs(pts))
+        max_dist = np.max(np.abs(pts[:, :2]))
         if max_dist > 0:
             pts = pts / max_dist
         embeddings.append(pts.flatten())
@@ -108,8 +110,8 @@ def load_model_if_exists():
         return None
     with open(MODEL_PATH, "rb") as f:
         clf = pickle.load(f)
-    # Validate it was trained on the new embedding size (1404-d)
-    if hasattr(clf, 'n_features_in_') and clf.n_features_in_ != 1404:
+    # Validate it was trained on the new embedding size (1434-d for refined landmarks)
+    if hasattr(clf, 'n_features_in_') and clf.n_features_in_ != 1434:
         # Stale model from old embedding scheme — discard it
         return None
     return clf
@@ -306,8 +308,10 @@ def _extract_face_roi(bgr_image, target_size=(100, 100)):
     if not results.detections:
         return None
 
-    # Pick the largest detection
-    best_det = sorted(results.detections, key=lambda d: d.proportions[0] if hasattr(d, 'proportions') else 0, reverse=True)[0]
+    # Pick the largest detection (use bbox area since proportions is not always reliable)
+    best_det = sorted(results.detections, 
+                      key=lambda d: d.location_data.relative_bounding_box.width * d.location_data.relative_bounding_box.height, 
+                      reverse=True)[0]
     bbox = best_det.location_data.relative_bounding_box
     
     xmin = max(0, int(bbox.xmin * w))
@@ -334,30 +338,33 @@ def _extract_face_roi(bgr_image, target_size=(100, 100)):
 def verify_staff_with_lbph(live_image_bytes, user_folder, max_train=10, max_distance=45.0):
     """
     Cached LBPH-based staff face verification.
+    Returns (verified, similarity_pct, face_detected)
     """
     if not os.path.isdir(user_folder):
-        return False, 0.0
+        return False, 0.0, False
 
     arr = np.frombuffer(live_image_bytes, np.uint8)
     live_img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
     if live_img is None:
-        return False, 0.0
+        return False, 0.0, False
 
     live_roi = _extract_face_roi(live_img)
     if live_roi is None:
-        return False, 0.0
+        return False, 0.0, False
 
     recognizer = _get_cached_lbph(user_folder, max_train)
     if recognizer is None:
-        return False, 0.0
+        return False, 0.0, False
     
     try:
         label, dist = recognizer.predict(live_roi)
-        similarity_pct = max(0.0, 100.0 - dist)
+        # Better scaling for LBPH: distance 0 is 100%, 130 is ~0%.
+        # This prevents 0% similarity purely because of LBPH distance baseline.
+        similarity_pct = max(0.0, 100.0 - (dist * 0.75))
         verified = dist <= max_distance
-        return verified, similarity_pct
+        return verified, similarity_pct, True
     except Exception:
-        return False, 0.0
+        return False, 0.0, False
 
 
 
@@ -375,7 +382,7 @@ def train_model_background(dataset_dir, progress_callback=None):
     face_mesh = mp.solutions.face_mesh.FaceMesh(
         static_image_mode=True,
         max_num_faces=1,
-        refine_landmarks=False,
+        refine_landmarks=True,
         min_detection_confidence=0.5,
         min_tracking_confidence=0.5
     )
@@ -417,7 +424,7 @@ def train_model_background(dataset_dir, progress_callback=None):
     unique_labels = set(y)
     if len(unique_labels) < 2:
         if progress_callback:
-            progress_callback(100, f"✅ Skipped: RandomForest needs >= 2 students. Currently {len(unique_labels)}.")
+            progress_callback(100, f"Skipped: RandomForest needs >= 2 students. Currently {len(unique_labels)}.")
         return
 
     X = np.stack(X)
@@ -441,4 +448,4 @@ def train_model_background(dataset_dir, progress_callback=None):
 
     if progress_callback:
         total_samples = sum(student_sample_counts.values())
-        progress_callback(100, f"✅ Training complete! {total_students} student(s).")
+        progress_callback(100, f"Training complete! {total_students} student(s).")

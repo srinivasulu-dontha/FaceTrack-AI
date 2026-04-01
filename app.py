@@ -241,11 +241,13 @@ def staff_face_verify():
     query_embeddings = []
     for face_lms in raw_faces:
         pts = np.array([[lm["x"], lm["y"], lm["z"]] for lm in face_lms], dtype="float32")
-        if pts.shape[0] != 468:
+        if pts.shape[0] < 468:
             continue
+        # Use up to 478 points if available (refined landmarks)
+        pts = pts[:478]
         mean = pts.mean(axis=0)
         pts = pts - mean
-        max_dist = np.max(np.abs(pts))
+        max_dist = np.max(np.abs(pts[:, :2]))
         if max_dist > 0:
             pts = pts / max_dist
         query_embeddings.append(pts.flatten())
@@ -269,7 +271,7 @@ def staff_face_verify():
     # --- Multi-sample voting ---
     # Threshold raised to 0.92 for tighter person-specific matching.
     # Require at least ceil(len/2)+1 samples to pass (majority) with a minimum of 3.
-    THRESHOLD = 0.90
+    THRESHOLD = 0.80
     MIN_VOTES_REQUIRED = max(3, (len(query_embeddings) // 2) + 1)
     passed = 0
     best_sim = 0.0
@@ -340,9 +342,9 @@ def staff_face_verify_image():
     for img_file in images:
         try:
             image_bytes = img_file.read()
-            verified, sim_pct = verify_staff_with_lbph(image_bytes, staff_folder,
-                                                     max_train=30, max_distance=80.0)
-            if sim_pct == 0.0 and not verified:
+            verified, sim_pct, face_detected = verify_staff_with_lbph(image_bytes, staff_folder,
+                                                     max_train=30, max_distance=105.0)
+            if not face_detected:
                 # No face detected in this frame — skip (not penalise)
                 continue
             total_valid += 1
@@ -674,11 +676,13 @@ def recognize_landmarks():
         embeddings = []
         for face_lms in faces:
             pts = np.array([[lm["x"], lm["y"], lm["z"]] for lm in face_lms], dtype="float32")
-            if pts.shape[0] != 468:
+            if pts.shape[0] < 468:
                 continue
+            # Use up to 478 points if available
+            pts = pts[:478]
             mean = pts.mean(axis=0)
             pts = pts - mean
-            max_dist = np.max(np.abs(pts))
+            max_dist = np.max(np.abs(pts[:, :2]))
             if max_dist > 0:
                 pts = pts / max_dist
             embeddings.append(pts.flatten())
