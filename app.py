@@ -243,8 +243,7 @@ def staff_face_verify():
         pts = np.array([[lm["x"], lm["y"], lm["z"]] for lm in face_lms], dtype="float32")
         if pts.shape[0] < 468:
             continue
-        # Use up to 478 points if available (refined landmarks)
-        pts = pts[:478]
+        pts = pts[:468]   # 468 pts × 3 = 1404-d, matches trained model
         mean = pts.mean(axis=0)
         pts = pts - mean
         max_dist = np.max(np.abs(pts[:, :2]))
@@ -332,7 +331,7 @@ def staff_face_verify_image():
     safe_u = "".join([ch for ch in user[1] if ch.isalnum() or ch in ('-','_')])
     staff_folder = os.path.join(STAFF_DATASET_DIR, safe_u)
 
-    from model import verify_staff_with_lbph
+    from model import verify_staff_with_sface
 
     passed = 0
     total_valid = 0
@@ -342,8 +341,9 @@ def staff_face_verify_image():
     for img_file in images:
         try:
             image_bytes = img_file.read()
-            verified, sim_pct, face_detected = verify_staff_with_lbph(image_bytes, staff_folder,
-                                                     max_train=30, max_distance=105.0)
+            # SFace uses Cosine similarity threshold (min_score=0.363 recommended)
+            # Default is 0.363, adjust min_score if necessary
+            verified, sim_pct, face_detected = verify_staff_with_sface(image_bytes, staff_folder, max_train=30, min_score=0.363)
             if not face_detected:
                 # No face detected in this frame — skip (not penalise)
                 continue
@@ -620,99 +620,111 @@ def _get_late_status(ts_str):
     except Exception:
         return "present"
 
-def _do_recognition(embeddings):
-    global CLF
-    if CLF is None:
-        from model import load_model_if_exists
-        CLF = load_model_if_exists()
-    if CLF is None:
-        return None, "model not trained"
-    from model import predict_with_model
-    results = []
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    today_local = datetime.datetime.now().date().isoformat()
-    ts = datetime.datetime.now().isoformat()
-    conf_threshold = float(get_setting("recognition_confidence", "0.60"))
-
-    for emb in embeddings:
-        pred_roll, conf = predict_with_model(CLF, emb)
-        if conf < conf_threshold:
-            # Save unknown face snapshot info
-            results.append({"recognized": False, "confidence": float(conf), "status": "low_confidence"})
-            continue
-        c.execute("SELECT id, name FROM students WHERE roll=?", (pred_roll,))
-        row = c.fetchone()
-        if not row:
-            results.append({"recognized": False, "confidence": float(conf), "status": "unknown_student"})
-            continue
-        student_id, name = row
-        c.execute("SELECT id, timestamp FROM attendance WHERE student_id=? AND date(timestamp)=? ORDER BY id ASC LIMIT 1",
-                  (student_id, today_local))
-        existing = c.fetchone()
-        att_status = _get_late_status(ts)
-        if existing:
-            results.append({"recognized": True, "student_id": student_id, "roll": pred_roll, "name": name,
-                            "confidence": float(conf), "status": "already_marked", "marked_at": existing[1]})
-        else:
-            c.execute("INSERT INTO attendance (student_id, name, timestamp, status) VALUES (?, ?, ?, ?)",
-                      (student_id, name, ts, att_status))
-            results.append({"recognized": True, "student_id": student_id, "roll": pred_roll, "name": name,
-                            "confidence": float(conf), "status": "marked", "marked_at": ts,
-                            "att_status": att_status})
-    conn.commit()
-    conn.close()
-    return results, None
-
-# -------- FAST: Recognize from pre-computed landmarks --------
-@app.route("/recognize_landmarks", methods=["POST"])
-def recognize_landmarks():
-    try:
-        import numpy as np
-        data = request.get_json(force=True)
-        faces = data.get("faces", [])
-        if not faces:
-            return jsonify({"recognized": False, "error": "no landmarks"}), 400
-        embeddings = []
-        for face_lms in faces:
-            pts = np.array([[lm["x"], lm["y"], lm["z"]] for lm in face_lms], dtype="float32")
-            if pts.shape[0] < 468:
-                continue
-            # Use up to 478 points if available
-            pts = pts[:478]
-            mean = pts.mean(axis=0)
-            pts = pts - mean
-            max_dist = np.max(np.abs(pts[:, :2]))
-            if max_dist > 0:
-                pts = pts / max_dist
-            embeddings.append(pts.flatten())
-        if not embeddings:
-            return jsonify({"recognized": False, "error": "no valid face landmarks"}), 400
-        results, err = _do_recognition(embeddings)
-        if err:
-            return jsonify({"recognized": False, "error": err}), 200
-        return jsonify({"recognized": True, "results": results}), 200
-    except Exception as e:
-        app.logger.exception("recognize_landmarks error")
-        return jsonify({"recognized": False, "error": str(e)}), 500
-
-# -------- Recognize face endpoint (POST image) — fallback --------
+# -------- Recognize face endpoint (POST image) --------
 @app.route("/recognize_face", methods=["POST"])
 def recognize_face():
     if "image" not in request.files:
         return jsonify({"recognized": False, "error": "no image"}), 400
+        
     img_file = request.files["image"]
+    
     try:
-        embeddings = extract_all_embeddings(img_file.stream)
-        if not embeddings:
+        from model import load_student_sface_embeddings, get_all_sface_embeddings, get_sface_recognizer
+        import numpy as np
+        import cv2
+        
+        arr = np.frombuffer(img_file.read(), np.uint8)
+        img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if img is None:
+            return jsonify({"recognized": False, "error": "invalid image"}), 400
+            
+        live_embs = get_all_sface_embeddings(img)
+        if not live_embs:
             return jsonify({"recognized": False, "error": "no face detected"}), 200
-        results, err = _do_recognition(embeddings)
-        if err:
-            return jsonify({"recognized": False, "error": err}), 200
-        return jsonify({"recognized": True, "results": results}), 200
+            
+        db_embeddings = load_student_sface_embeddings()
+        if not db_embeddings:
+            return jsonify({"recognized": False, "error": "model not trained"}), 200
+
+        recognizer = get_sface_recognizer()
+        
+        final_results = []
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        
+        today_local = datetime.datetime.now().date().isoformat()
+        ts = datetime.datetime.now().isoformat()
+        att_status = _get_late_status(ts)
+
+        for live_emb in live_embs:
+            best_score = 0.0
+            best_roll = None
+            
+            # SFace gives high robustness. Cosine score >= 0.363 is identical person.
+            for roll, embs in db_embeddings.items():
+                for ref_emb in embs:
+                    score = recognizer.match(live_emb, ref_emb, cv2.FaceRecognizerSF_FR_COSINE)
+                    if score > best_score:
+                        best_score = score
+                        best_roll = roll
+            
+            # Min threshold logic.
+            min_score = 0.363
+            similarity_pct = max(0.0, min(100.0, best_score * 100.0))
+            
+            app.logger.info(f"SFace Predict: Roll {best_roll} -> score: {best_score:.3f}, sim: {similarity_pct:.1f}%")
+
+            if best_score < min_score or not best_roll:
+                final_results.append({
+                    "recognized": False, 
+                    "confidence": similarity_pct / 100.0, 
+                    "status": "unknown_student"
+                })
+                continue
+
+            pred_roll = best_roll
+            c.execute("SELECT id, name FROM students WHERE roll=?", (pred_roll,))
+            row = c.fetchone()
+            if not row:
+                final_results.append({
+                    "recognized": False, 
+                    "confidence": similarity_pct / 100.0, 
+                    "status": "unknown_student"
+                })
+                continue
+                
+            student_id, name = row
+
+            c.execute("SELECT id, timestamp FROM attendance WHERE student_id=? AND date(timestamp)=? ORDER BY id ASC LIMIT 1",
+                      (student_id, today_local))
+            existing = c.fetchone()
+            
+            result_payload = {
+                "recognized": True, 
+                "student_id": student_id, 
+                "roll": pred_roll, 
+                "name": name,
+                "confidence": similarity_pct / 100.0
+            }
+
+            if existing:
+                result_payload.update({"status": "already_marked", "marked_at": existing[1]})
+            else:
+                c.execute("INSERT INTO attendance (student_id, name, timestamp, status) VALUES (?, ?, ?, ?)",
+                          (student_id, name, ts, att_status))
+                result_payload.update({"status": "marked", "marked_at": ts, "att_status": att_status})
+                
+            final_results.append(result_payload)
+            
+        conn.commit()
+        conn.close()
+        
+        return jsonify({"recognized": True, "results": final_results}), 200
+
     except Exception as e:
         app.logger.exception("recognize error")
         return jsonify({"recognized": False, "error": str(e)}), 500
+
 
 # -------- Dashboard summary stats --------
 @app.route("/dashboard_summary")
@@ -1251,6 +1263,9 @@ def upload_staff_face():
         except Exception as e:
             app.logger.error("staff face save error: %s", e)
     if saved > 0:
+        # Invalidate any stale LBPH cache so the next verification retrains on fresh photos
+        from model import invalidate_lbph_cache
+        invalidate_lbph_cache(folder)
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute("UPDATE users SET face_enrolled=1 WHERE id=?", (staff_id,))

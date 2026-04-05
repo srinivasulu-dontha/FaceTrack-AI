@@ -45,26 +45,76 @@ def _extract_landmark_embedding(bgr_image, face_mesh):
 _thread_local = threading.local()
 
 
-def _get_face_mesh():
-    """Return a per-thread MediaPipe FaceMesh instance."""
-    if not hasattr(_thread_local, 'face_mesh'):
-        _thread_local.face_mesh = mp.solutions.face_mesh.FaceMesh(
-            static_image_mode=True,
-            max_num_faces=5,
-            refine_landmarks=True,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+# ---- OpenCV Deep Learning Models (SFace & YuNet) ----
+def get_yunet_detector(shape=(320, 320)):
+    """Return a per-thread YuNet DL Face Detector."""
+    if not hasattr(_thread_local, 'yunet'):
+        _thread_local.yunet = cv2.FaceDetectorYN_create(
+            "face_detection_yunet_2023mar.onnx",
+            "",
+            shape, # This shape must be updated per-image using setInputSize
+            score_threshold=0.6,
+            nms_threshold=0.3,
+            top_k=5000
         )
-    return _thread_local.face_mesh
+    return _thread_local.yunet
+
+def get_sface_recognizer():
+    """Return a per-thread SFace DL Face Recognizer."""
+    if not hasattr(_thread_local, 'sface'):
+        _thread_local.sface = cv2.FaceRecognizerSF_create(
+            "face_recognition_sface_2021dec.onnx",
+            ""
+        )
+    return _thread_local.sface
+
+def get_sface_embedding(bgr_image):
+    """
+    Detect face via YuNet and extract 128-d SFace embedding.
+    Returns the normalized 128-d numpy array, or None.
+    """
+    h, w, _ = bgr_image.shape
+    detector = get_yunet_detector((w, h))
+    detector.setInputSize((w, h))
+    
+    _, faces = detector.detect(bgr_image)
+    if faces is None or len(faces) == 0:
+        return None
+        
+    # Get largest face bbox
+    best_face = sorted(faces, key=lambda f: f[2]*f[3], reverse=True)[0]
+    
+    recognizer = get_sface_recognizer()
+    aligned_face = recognizer.alignCrop(bgr_image, best_face)
+    feature = recognizer.feature(aligned_face)
+    return feature[0] # Returns a 128-d vector
 
 
-def _get_face_detector():
-    """Return a per-thread MediaPipe FaceDetection instance (for bounding boxes)."""
-    if not hasattr(_thread_local, 'detector'):
-        _thread_local.detector = mp.solutions.face_detection.FaceDetection(
-            model_selection=0, min_detection_confidence=0.5
-        )
-    return _thread_local.detector
+def get_all_sface_embeddings(bgr_image):
+    """
+    Detect ALL faces via YuNet and extract 128-d SFace embeddings for each.
+    Returns a list of normalized 128-d numpy arrays, or an empty list.
+    """
+    h, w, _ = bgr_image.shape
+    detector = get_yunet_detector((w, h))
+    detector.setInputSize((w, h))
+    
+    _, faces = detector.detect(bgr_image)
+    if faces is None or len(faces) == 0:
+        return []
+        
+    recognizer = get_sface_recognizer()
+    embeddings = []
+    
+    for face in faces:
+        try:
+            aligned_face = recognizer.alignCrop(bgr_image, face)
+            feature = recognizer.feature(aligned_face)
+            embeddings.append(feature[0])
+        except Exception:
+            continue
+            
+    return embeddings
 
 
 def extract_all_embeddings(stream_or_bytes):
@@ -105,26 +155,24 @@ def extract_embedding_for_image(stream_or_bytes):
 
 
 # ---- Load model helpers ----
+def load_student_sface_embeddings():
+    if not os.path.exists(SFACE_MODEL_PATH):
+        return None
+    with open(SFACE_MODEL_PATH, "rb") as f:
+        return pickle.load(f)
+
 def load_model_if_exists():
+    """DEPRECATED: Used for the old RandomForest model."""
     if not os.path.exists(MODEL_PATH):
         return None
     with open(MODEL_PATH, "rb") as f:
         clf = pickle.load(f)
-    # Validate it was trained on the new embedding size (1434-d for refined landmarks)
-    if hasattr(clf, 'n_features_in_') and clf.n_features_in_ != 1434:
-        # Stale model from old embedding scheme — discard it
+    if hasattr(clf, 'n_features_in_') and clf.n_features_in_ != 1404:
         return None
     return clf
 
 
-def predict_with_model(clf, emb):
-    """Returns (label, confidence) where confidence is max class probability."""
-    proba = clf.predict_proba([emb])[0]
-    idx = np.argmax(proba)
-    label = clf.classes_[idx]
-    conf = float(proba[idx])
-    return label, conf
-
+# Removed obsolete predict_with_model and cosine_verify_against_folder
 
 def compute_embedding_from_bytes(image_bytes):
     """
@@ -154,6 +202,20 @@ def find_duplicate_in_dataset(query_embedding, dataset_dir, max_ref_per_student=
     Actual duplicate detection now uses find_duplicate_cosine() with image bytes.
     """
     return None, 0.0
+
+
+def invalidate_lbph_cache(folder_path):
+    """
+    Delete the cached lbph_model.yml from a staff folder so it is retrained
+    fresh on the next verification call.  Call this whenever new photos are
+    saved to the folder (e.g. after re-enrollment).
+    """
+    cache_path = os.path.join(folder_path, "lbph_model.yml")
+    if os.path.exists(cache_path):
+        try:
+            os.remove(cache_path)
+        except Exception:
+            pass
 
 
 def _get_cached_lbph(folder_path, max_images):
@@ -335,9 +397,11 @@ def _extract_face_roi(bgr_image, target_size=(100, 100)):
     return cv2.resize(gray, target_size)
 
 
-def verify_staff_with_lbph(live_image_bytes, user_folder, max_train=10, max_distance=45.0):
+def verify_staff_with_sface(live_image_bytes, user_folder, max_train=5, min_score=0.363):
     """
-    Cached LBPH-based staff face verification.
+    SFace-based staff face verification.
+    Computes SFace embedding for the live image and compares it to stored staff photos via Cosine Distance.
+    OpenCV's standard SFace threshold is 0.363 for Cosine matching.
     Returns (verified, similarity_pct, face_detected)
     """
     if not os.path.isdir(user_folder):
@@ -348,26 +412,40 @@ def verify_staff_with_lbph(live_image_bytes, user_folder, max_train=10, max_dist
     if live_img is None:
         return False, 0.0, False
 
-    live_roi = _extract_face_roi(live_img)
-    if live_roi is None:
+    live_emb = get_sface_embedding(live_img)
+    if live_emb is None:
         return False, 0.0, False
 
-    recognizer = _get_cached_lbph(user_folder, max_train)
-    if recognizer is None:
+    # Extract reference embeddings on the fly (SFace is fast)
+    image_files = sorted([f for f in os.listdir(user_folder)
+                          if f.lower().endswith(('.jpg', '.jpeg', '.png'))])
+    if not image_files:
         return False, 0.0, False
+        
+    best_score = 0.0
+    for fn in image_files[:max_train]:
+        img_path = os.path.join(user_folder, fn)
+        ref_img = cv2.imread(img_path)
+        if ref_img is None: continue
+        ref_emb = get_sface_embedding(ref_img)
+        if ref_emb is None: continue
+        
+        recognizer = get_sface_recognizer()
+        score = recognizer.match(live_emb, ref_emb, cv2.FaceRecognizerSF_FR_COSINE)
+        if score > best_score:
+            best_score = score
+            
+    # OpenCV Zoo recommends threshold 0.363 for Cosine match.
+    similarity_pct = max(0.0, min(100.0, best_score * 100.0))
+    verified = best_score >= min_score
     
-    try:
-        label, dist = recognizer.predict(live_roi)
-        # Better scaling for LBPH: distance 0 is 100%, 130 is ~0%.
-        # This prevents 0% similarity purely because of LBPH distance baseline.
-        similarity_pct = max(0.0, 100.0 - (dist * 0.75))
-        verified = dist <= max_distance
-        return verified, similarity_pct, True
-    except Exception:
-        return False, 0.0, False
+    return verified, similarity_pct, True
 
 
 
+
+
+SFACE_MODEL_PATH = os.path.join(os.path.dirname(MODEL_PATH) or ".", "sface_student_embeddings.pkl")
 
 # ---- Training function used in background ----
 def train_model_background(dataset_dir, progress_callback=None):
@@ -377,75 +455,61 @@ def train_model_background(dataset_dir, progress_callback=None):
             img1.jpg
             img2.jpg
             ...
-    Uses MediaPipe FaceMesh 468-landmark embeddings for much better discrimination.
+    Extracts 128-d SFace embeddings for each student and saves them to
+    sface_student_embeddings.pkl.
     """
-    face_mesh = mp.solutions.face_mesh.FaceMesh(
-        static_image_mode=True,
-        max_num_faces=1,
-        refine_landmarks=True,
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5
-    )
-
-    X = []
-    y = []
     student_dirs = [d for d in os.listdir(dataset_dir) if os.path.isdir(os.path.join(dataset_dir, d))]
     total_students = max(1, len(student_dirs))
     processed = 0
     student_sample_counts = {}
 
+    MAX_SAMPLES_PER_STUDENT = 10  # SFace is powerful, we only need ~10 good varied angles
+    
+    # Structure: {"roll_no": [emb1, emb2, ...]}
+    db_embeddings = {}
+
     for sid in student_dirs:
         folder = os.path.join(dataset_dir, sid)
         files = [f for f in os.listdir(folder) if f.lower().endswith((".jpg", ".jpeg", ".png"))]
+        
+        if len(files) > MAX_SAMPLES_PER_STUDENT:
+            step = len(files) // MAX_SAMPLES_PER_STUDENT
+            files = files[::step][:MAX_SAMPLES_PER_STUDENT]
+            
         count = 0
+        embs = []
         for fn in files:
             path = os.path.join(folder, fn)
             img = cv2.imread(path)
             if img is None:
                 continue
-            emb = _extract_landmark_embedding(img, face_mesh)
-            if emb is None:
-                continue
-            X.append(emb)
-            y.append(sid)
-            count += 1
+                
+            emb = get_sface_embedding(img)
+            if emb is not None:
+                embs.append(emb)
+                count += 1
+                
+        if len(embs) > 0:
+            db_embeddings[sid] = embs
+            
         student_sample_counts[sid] = count
         processed += 1
         if progress_callback:
             pct = int((processed / total_students) * 80)
-            progress_callback(pct, f"Training students: {processed}/{total_students} processed…")
+            progress_callback(pct, f"Extracting embeddings: {processed}/{total_students} students…")
 
-    if len(X) == 0:
+    if len(db_embeddings) == 0:
         if progress_callback:
-            progress_callback(100, "No training data found")
+            progress_callback(100, "No valid faces found")
         return
-
-    # Check that we have samples from multiple classes
-    unique_labels = set(y)
-    if len(unique_labels) < 2:
-        if progress_callback:
-            progress_callback(100, f"Skipped: RandomForest needs >= 2 students. Currently {len(unique_labels)}.")
-        return
-
-    X = np.stack(X)
-    y = np.array(y)
 
     if progress_callback:
-        progress_callback(85, "Training RandomForest...")
+        progress_callback(85, "Saving SFace Database...")
 
-    clf = RandomForestClassifier(
-        n_estimators=200,
-        max_depth=None,
-        min_samples_leaf=1,
-        n_jobs=-1,
-        random_state=42,
-        class_weight="balanced"   # prevents bias toward majority class
-    )
-    clf.fit(X, y)
-
-    with open(MODEL_PATH, "wb") as f:
-        pickle.dump(clf, f)
+    with open(SFACE_MODEL_PATH, "wb") as f:
+        pickle.dump(db_embeddings, f)
 
     if progress_callback:
         total_samples = sum(student_sample_counts.values())
-        progress_callback(100, f"Training complete! {total_students} student(s).")
+        progress_callback(100, f"Training complete! {total_students} student(s), {total_samples} faces.")
+
