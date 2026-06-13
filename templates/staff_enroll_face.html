@@ -16,8 +16,8 @@
         }
 
         body {
-            background: #0f172a;
-            color: #f1f5f9;
+            background: #020617;
+            color: #f8fafc;
             font-family: 'Segoe UI', sans-serif;
             min-height: 100vh
         }
@@ -45,8 +45,8 @@
         }
 
         .info-card {
-            background: #1e293b;
-            border: 1px solid #334155;
+            background: #0f172a;
+            border: 1px solid #e2e8f0;
             border-radius: 14px;
             padding: 1.25rem 1.5rem;
             margin-bottom: 1.5rem;
@@ -68,9 +68,9 @@
         }
 
         .cam-card {
-            background: #1e293b;
+            background: #0f172a;
             border-radius: 14px;
-            border: 1px solid #334155;
+            border: 1px solid #e2e8f0;
             padding: 1.5rem;
             text-align: center
         }
@@ -82,7 +82,7 @@
             max-width: 520px;
             display: block;
             margin: 0 auto;
-            background: #0f172a
+            background: #020617
         }
 
         .prog-wrap {
@@ -90,11 +90,11 @@
         }
 
         .prog-bar-bg {
-            background: #0f172a;
+            background: #020617;
             border-radius: 6px;
             height: 10px;
             overflow: hidden;
-            border: 1px solid #334155
+            border: 1px solid #e2e8f0
         }
 
         .prog-bar-fill {
@@ -106,10 +106,11 @@
 
         #captureStatus {
             font-size: .82rem;
-            color: #94a3b8;
+            color: #475569;
             margin-top: .4rem
         }
     </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 
 <body data-staff-id="{{ staff_user[0] }}">
@@ -124,7 +125,7 @@
         <div class="info-card">
             <div class="avatar">👤</div>
             <div>
-                <div style="font-weight:700;color:#f1f5f9">{{ staff_user[2] }}</div>
+                <div style="font-weight:700;color: #f8fafc">{{ staff_user[2] }}</div>
                 <div style="font-size:.78rem;color:#64748b">Username: <code
                         style="color:#93c5fd">{{ staff_user[1] }}</code> &nbsp;|&nbsp; Role: <strong>{{ staff_user[3]
                         }}</strong></div>

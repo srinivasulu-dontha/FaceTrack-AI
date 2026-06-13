@@ -575,8 +575,7 @@ def _start_training_thread():
             running = False
         write_train_status({"running": running, "progress": p, "message": m})
         if not running:
-            global CLF  # Reset module-level classifier so it reloads the new model
-            CLF = None
+            pass
     def run_training():
         try:
             train_model_background(DATASET_DIR, update_status)
@@ -606,8 +605,6 @@ def mark_attendance_page():
     if redir: return redir
     return render_template("mark_attendance.html")
 
-# -------- Shared recognition logic --------
-CLF = None
 
 def _get_late_status(ts_str):
     """Returns 'late' if time is after cutoff, else 'present'."""

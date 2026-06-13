@@ -4,7 +4,7 @@ import threading
 import numpy as np
 import pickle
 import mediapipe as mp
-from sklearn.ensemble import RandomForestClassifier
+
 
 MODEL_PATH = "model.pkl"
 
@@ -161,15 +161,7 @@ def load_student_sface_embeddings():
     with open(SFACE_MODEL_PATH, "rb") as f:
         return pickle.load(f)
 
-def load_model_if_exists():
-    """DEPRECATED: Used for the old RandomForest model."""
-    if not os.path.exists(MODEL_PATH):
-        return None
-    with open(MODEL_PATH, "rb") as f:
-        clf = pickle.load(f)
-    if hasattr(clf, 'n_features_in_') and clf.n_features_in_ != 1404:
-        return None
-    return clf
+
 
 
 # Removed obsolete predict_with_model and cosine_verify_against_folder

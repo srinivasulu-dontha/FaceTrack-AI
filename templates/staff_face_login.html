@@ -18,7 +18,7 @@
         body {
             min-height: 100vh;
             background: #0d1117;
-            color: #f1f5f9;
+            color: #f8fafc;
             font-family: 'Inter', sans-serif;
             display: flex;
             align-items: center;
@@ -158,7 +158,7 @@
             border-radius: 8px;
             border-left: 4px solid #0891b2;
             font-size: .82rem;
-            color: #94a3b8;
+            color: #475569;
             transition: border-color .3s, color .3s;
             margin-bottom: .75rem
         }
@@ -181,7 +181,7 @@
         /* Similarity bar */
         .sim-bar {
             height: 6px;
-            background: #1e293b;
+            background: #0f172a;
             border-radius: 3px;
             overflow: hidden;
             margin-bottom: .75rem;
@@ -215,13 +215,13 @@
 
         .btn-primary {
             background: linear-gradient(135deg, #0891b2, #0d9488);
-            color: #fff
+            color: #f8fafc
         }
 
         .btn-secondary {
-            background: #1e293b;
-            border: 1px solid #334155;
-            color: #94a3b8
+            background: #0f172a;
+            border: 1px solid #e2e8f0;
+            color: #475569
         }
 
         .btn:disabled {
@@ -241,9 +241,10 @@
         }
 
         .back a:hover {
-            color: #94a3b8
+            color: #475569
         }
     </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 
 <body>

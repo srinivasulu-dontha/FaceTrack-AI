@@ -18,8 +18,8 @@
         }
 
         body {
-            background: #0f172a;
-            color: #f1f5f9;
+            background: #020617;
+            color: #f8fafc;
             font-family: 'Inter', 'Segoe UI', sans-serif;
         }
 
@@ -59,9 +59,9 @@
         }
 
         .search-box input {
-            background: #1e293b;
-            border: 1px solid #334155;
-            color: #f1f5f9;
+            background: #0f172a;
+            border: 1px solid #e2e8f0;
+            color: #f8fafc;
             border-radius: 9px;
             padding: .4rem .9rem .4rem 2.2rem;
             font-size: .85rem;
@@ -104,9 +104,9 @@
         }
 
         .tbl-wrap {
-            background: #1e293b;
+            background: #0f172a;
             border-radius: 14px;
-            border: 1px solid #334155;
+            border: 1px solid #e2e8f0;
             overflow: hidden;
         }
 
@@ -117,7 +117,7 @@
         }
 
         thead th {
-            background: #0f172a;
+            background: #020617;
             padding: .75rem 1rem;
             color: #64748b;
             font-size: .72rem;
@@ -159,7 +159,7 @@
             width: 42px;
             height: 42px;
             border-radius: 50%;
-            background: #1e293b;
+            background: #0f172a;
             border: 2px solid #334155;
             display: flex;
             align-items: center;
@@ -195,7 +195,7 @@
         .att-bar-bg {
             flex: 1;
             height: 6px;
-            background: #0f172a;
+            background: #020617;
             border-radius: 3px;
             overflow: hidden;
         }
@@ -263,7 +263,7 @@
         }
 
         .utc-time {
-            color: #94a3b8;
+            color: #475569;
             font-size: .8rem;
         }
 
@@ -284,8 +284,8 @@
         }
 
         .modal-box {
-            background: #1e293b;
-            border: 1px solid #334155;
+            background: #0f172a;
+            border: 1px solid #e2e8f0;
             border-radius: 16px;
             padding: 2rem;
             width: 420px;
@@ -326,7 +326,7 @@
             display: block;
             font-size: .72rem;
             font-weight: 600;
-            color: #94a3b8;
+            color: #475569;
             text-transform: uppercase;
             letter-spacing: .7px;
             margin-bottom: .35rem;
@@ -334,9 +334,9 @@
 
         .form-input {
             width: 100%;
-            background: #0f172a;
-            border: 1px solid #334155;
-            color: #f1f5f9;
+            background: #020617;
+            border: 1px solid #e2e8f0;
+            color: #f8fafc;
             border-radius: 8px;
             padding: .55rem .8rem;
             font-size: .88rem;
@@ -356,6 +356,7 @@
             margin-top: 1.25rem;
         }
     </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 
 <body>
@@ -406,7 +407,7 @@
                             <img src="/student_image/{{ s[0] }}" alt="Photo" class="avatar"
                                 onerror="this.outerHTML='<div class=\'avatar-placeholder\'>👤</div>'">
                         </td>
-                        <td style="font-weight:600;color:#f1f5f9;">{{ s[1] }}</td>
+                        <td style="font-weight:600;color: #f8fafc;">{{ s[1] }}</td>
                         <td><span class="badge-roll">{{ s[2] or '—' }}</span></td>
                         <td><span class="badge-class">{{ s[3] or '—' }}</span></td>
                         <td>{{ s[4] or '—' }}</td>
