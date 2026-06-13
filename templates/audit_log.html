@@ -9,8 +9,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
-            background: #0f172a;
-            color: #f1f5f9;
+            background: #020617;
+            color: #f8fafc;
             font-family: 'Inter', sans-serif;
             margin: 0;
         }
@@ -38,8 +38,8 @@
         }
 
         .tbl-wrap {
-            background: #1e293b;
-            border: 1px solid #334155;
+            background: #0f172a;
+            border: 1px solid #e2e8f0;
             border-radius: 14px;
             overflow: hidden;
         }
@@ -51,7 +51,7 @@
         }
 
         thead th {
-            background: #0f172a;
+            background: #020617;
             padding: .75rem 1rem;
             color: #64748b;
             font-size: .72rem;
@@ -92,6 +92,7 @@
             color: #475569;
         }
     </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 
 <body>
@@ -100,7 +101,7 @@
             <a href="/settings" class="btn btn-sm btn-outline-light" style="border-radius:7px;">← Settings</a>
             <h4>📋 Audit Log</h4>
         </div>
-        <span style="font-size:.8rem;color:#94a3b8;">Last 200 actions</span>
+        <span style="font-size:.8rem;color: #475569;">Last 200 actions</span>
     </div>
     <div class="page">
         <div class="tbl-wrap">
@@ -118,7 +119,7 @@
                     <tr>
                         <td>{{ loop.index }}</td>
                         <td><span class="action-badge">{{ log[1] }}</span></td>
-                        <td style="color:#94a3b8;font-size:.82rem;">{{ log[2] }}</td>
+                        <td style="color: #475569;font-size:.82rem;">{{ log[2] }}</td>
                         <td style="color:#64748b;font-size:.8rem;">{{ log[3][:16].replace('T',' ') if log[3] else '—' }}
                         </td>
                     </tr>

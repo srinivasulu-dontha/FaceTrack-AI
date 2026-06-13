@@ -22,18 +22,18 @@
     body {
       height: 100%;
       font-family: 'Inter', 'Segoe UI', sans-serif;
-      background: #0f172a;
-      color: #f1f5f9;
+      background: #020617;
+      color: #f8fafc;
     }
 
     /* ── Navbar ── */
     .top-nav {
-      background: linear-gradient(90deg, #1e293b 0%, #1e40af 100%);
+      background: #0f172a; border-bottom: 1px solid #e2e8f0;
       padding: .85rem 2rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      box-shadow: 0 2px 16px rgba(0, 0, 0, .5);
+      box-shadow: 0 2px 16px rgba(0, 0, 0, .05);
       position: sticky;
       top: 0;
       z-index: 100;
@@ -63,14 +63,14 @@
       border-radius: 7px;
       font-size: .82rem;
       font-weight: 600;
-      color: #cbd5e1;
+      color: #475569;
       text-decoration: none;
       transition: background .2s, color .2s;
     }
 
     .nav-links a:hover {
-      background: rgba(255, 255, 255, .12);
-      color: #fff;
+      background: rgba(0, 0, 0, .05);
+      color: #f8fafc;
     }
 
     .nav-links .logout-btn {
@@ -100,10 +100,10 @@
     }
 
     .stat-card {
-      background: #1e293b;
+      background: #0f172a;
       border-radius: 14px;
       padding: 1.25rem 1.5rem;
-      border: 1px solid #334155;
+      border: 1px solid #e2e8f0;
       display: flex;
       align-items: center;
       gap: 1rem;
@@ -191,17 +191,17 @@
     }
 
     /* ── Cards ── */
-    .card-dark {
-      background: #1e293b;
+    .card-light {
+      background: #0f172a;
       border-radius: 14px;
       padding: 1.5rem;
-      border: 1px solid #334155;
+      border: 1px solid #e2e8f0;
     }
 
-    .card-dark h5 {
+    .card-light h5 {
       font-size: .85rem;
       font-weight: 700;
-      color: #94a3b8;
+      color: #475569;
       text-transform: uppercase;
       letter-spacing: 1px;
       margin-bottom: 1.25rem;
@@ -217,7 +217,7 @@
       font-weight: 600;
       font-size: .88rem;
       text-decoration: none;
-      color: #f1f5f9;
+      color: #f8fafc;
       transition: all .2s;
       border: 1px solid;
       margin-bottom: .6rem;
@@ -230,7 +230,7 @@
 
     .ab-blue:hover {
       background: rgba(29, 78, 216, .4);
-      color: #f1f5f9;
+      color: #f8fafc;
     }
 
     .ab-teal {
@@ -240,7 +240,7 @@
 
     .ab-teal:hover {
       background: rgba(13, 148, 136, .4);
-      color: #f1f5f9;
+      color: #f8fafc;
     }
 
     .ab-green {
@@ -250,7 +250,7 @@
 
     .ab-green:hover {
       background: rgba(22, 163, 74, .4);
-      color: #f1f5f9;
+      color: #f8fafc;
     }
 
     .ab-amber {
@@ -260,7 +260,7 @@
 
     .ab-amber:hover {
       background: rgba(180, 83, 9, .4);
-      color: #f1f5f9;
+      color: #f8fafc;
     }
 
     .ab-indigo {
@@ -270,18 +270,18 @@
 
     .ab-indigo:hover {
       background: rgba(67, 56, 202, .4);
-      color: #f1f5f9;
+      color: #f8fafc;
     }
 
     /* Train section */
-    .progress-dark {
+    .progress-light {
       height: 28px;
-      background: #0f172a;
+      background: #020617;
       border-radius: 8px;
       overflow: hidden;
     }
 
-    .progress-dark .bar {
+    .progress-light .bar {
       height: 100%;
       background: linear-gradient(90deg, #3b82f6, #6366f1);
       border-radius: 8px;
@@ -291,7 +291,7 @@
       justify-content: center;
       font-size: .8rem;
       font-weight: 700;
-      color: #fff;
+      color: #f8fafc;
     }
 
     #trainMsg {
@@ -326,6 +326,7 @@
       color: #f87171;
     }
   </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 
 <body>
@@ -341,7 +342,7 @@
       <a href="/attendance_record">📋 Records</a>
       <a href="/admin/staff">🔐 Staff Accounts</a>
       <a href="/settings">⚙️ Settings</a>
-      <span style="color:#94a3b8;font-size:.78rem;padding:.3rem .6rem">👤 {{ current_user.name if current_user else
+      <span style="color: #475569;font-size:.78rem;padding:.3rem .6rem">👤 {{ current_user.name if current_user else
         'Admin' }}</span>
       <a href="/logout" class="logout-btn">🔓 Logout</a>
     </div>
@@ -355,7 +356,7 @@
 
       <!-- Left: Quick Actions + Train -->
       <div class="left-panel">
-        <div class="card-dark" style="margin-bottom:1.5rem;">
+        <div class="card-light" style="margin-bottom:1.5rem;">
           <h5>QUICK ACTIONS</h5>
           <a class="action-btn ab-indigo" href="/add_student">➕ &ensp;Register Student</a>
           <a class="action-btn ab-teal" href="/manage_students">👥 &ensp;Manage Students</a>
@@ -364,9 +365,9 @@
           <a class="action-btn ab-indigo" style="margin-bottom: 0;" href="/settings">⚙️ &ensp;Settings</a>
         </div>
 
-        <div class="card-dark">
+        <div class="card-light">
           <h5>TRAIN MODEL</h5>
-          <div class="progress-dark">
+          <div class="progress-light">
             <div class="bar" id="trainProgress" style="width:0%">0%</div>
           </div>
           <div id="trainMsg">Not trained yet.</div>
@@ -411,7 +412,7 @@
         </div>
 
         <!-- Chart -->
-        <div class="card-dark" style="flex-grow: 1; display: flex; flex-direction: column; min-height: 300px;">
+        <div class="card-light" style="flex-grow: 1; display: flex; flex-direction: column; min-height: 300px;">
           <h5>ATTENDANCE — LAST
             30 DAYS</h5>
           <div style="flex-grow: 1; position: relative;">

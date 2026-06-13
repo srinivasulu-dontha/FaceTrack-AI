@@ -18,8 +18,8 @@
         }
 
         body {
-            background: #0f172a;
-            color: #f1f5f9;
+            background: #020617;
+            color: #f8fafc;
             font-family: 'Inter', 'Segoe UI', sans-serif
         }
 
@@ -55,9 +55,9 @@
         }
 
         .tbl-wrap {
-            background: #1e293b;
+            background: #0f172a;
             border-radius: 14px;
-            border: 1px solid #334155;
+            border: 1px solid #e2e8f0;
             overflow: hidden
         }
 
@@ -68,7 +68,7 @@
         }
 
         thead th {
-            background: #0f172a;
+            background: #020617;
             padding: .75rem 1rem;
             color: #64748b;
             font-size: .72rem;
@@ -147,7 +147,7 @@
 
         .st-inactive {
             background: rgba(100, 116, 139, .12);
-            color: #94a3b8
+            color: #475569
         }
 
         .action-group {
@@ -178,8 +178,8 @@
         }
 
         .modal-box {
-            background: #1e293b;
-            border: 1px solid #334155;
+            background: #0f172a;
+            border: 1px solid #e2e8f0;
             border-radius: 16px;
             padding: 2rem;
             width: 440px;
@@ -214,7 +214,7 @@
             display: block;
             font-size: .72rem;
             font-weight: 600;
-            color: #94a3b8;
+            color: #475569;
             text-transform: uppercase;
             letter-spacing: .7px;
             margin-bottom: .35rem
@@ -222,9 +222,9 @@
 
         .form-input {
             width: 100%;
-            background: #0f172a;
-            border: 1px solid #334155;
-            color: #f1f5f9;
+            background: #020617;
+            border: 1px solid #e2e8f0;
+            color: #f8fafc;
             border-radius: 8px;
             padding: .55rem .8rem;
             font-size: .88rem;
@@ -257,6 +257,7 @@
             display: none
         }
     </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 
 <body>
@@ -266,7 +267,7 @@
             <h4>👥 Staff Management</h4>
         </div>
         <div style="display:flex;align-items:center;gap:.5rem">
-            <span style="font-size:.8rem;color:#94a3b8">Logged in as <strong style="color:#60a5fa">{{ current_user.name
+            <span style="font-size:.8rem;color: #475569">Logged in as <strong style="color:#60a5fa">{{ current_user.name
                     }}</strong></span>
             <button class="btn btn-sm btn-success" style="border-radius:7px;font-weight:600"
                 onclick="document.getElementById('addModal').classList.add('open')">➕ Add User</button>
@@ -298,7 +299,7 @@
                     <tr id="urow-{{ u[0] }}">
                         <td>{{ loop.index }}</td>
                         <td><code style="color:#93c5fd;font-size:.82rem">{{ u[1] }}</code></td>
-                        <td style="font-weight:600;color:#f1f5f9">{{ u[2] }}</td>
+                        <td style="font-weight:600;color: #f8fafc">{{ u[2] }}</td>
                         <td><span class="badge-role role-{{ u[3] }}">{{ u[3] }}</span></td>
                         <td><span class="badge-face {{ 'face-yes' if u[4] else 'face-no' }}">{{ '✅ Enrolled' if u[4]
                                 else '❌ Not enrolled' }}</span></td>

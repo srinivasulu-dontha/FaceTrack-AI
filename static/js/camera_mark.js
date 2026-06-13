@@ -21,12 +21,12 @@ let faceMesh = null;
 const LEFT_EYE = [33, 160, 158, 133, 153, 144];
 const RIGHT_EYE = [362, 385, 387, 263, 373, 380];
 
-// ─── Thresholds (Strict Sequential Edition) ────────────────────────────────
-const LIVENESS_HISTORY_FRAMES = 20;       // Require 20 frames for a highly stable baseline
-const BLINK_DROP_THRESH = 0.14;           // Require a deep, deliberate eyelid closure (prevents squinting/looking down)
-const MIN_BLINK_FRAMES = 3;               // Require eyes to stay shut for at least 3 frames (eliminates multi-frame noise)
-const MAX_NOSE_MOVE_FOR_BLINK = 0.03;     // Much tighter vertical stability requirement to block photo wobbling
-const SMILE_STRETCH_RATIO = 1.25;         // Require a very wide, deliberate 25% smile (prevents normal talking from verifying)
+// ─── Thresholds (Optimized Sequential Edition) ─────────────────────────────
+const LIVENESS_HISTORY_FRAMES = 10;       // Require 10 frames (~1/3 second) for stable baseline
+const BLINK_DROP_THRESH = 0.10;           // High threshold to ignore static photo noise jitter
+const MIN_BLINK_FRAMES = 2;               // Human blinks take 100-400ms. 2+ frames filters out 1-frame mathematical glitches
+const MAX_NOSE_MOVE_FOR_BLINK = 0.08;     // Permit slight human head motion/wobbling while blinking
+const SMILE_STRETCH_RATIO = 1.15;         // Permit a mild smile (15% wider) or talking to verify liveness
 
 // ─── Per-face liveness state ──────────────────────────────────────────────────
 let activeTracks = []; // Array of { id: number, centroid: {cx, cy}, state: object }
@@ -48,6 +48,9 @@ if (quickToggleBtn) {
     quickToggleBtn.className = isQuickMode ? "btn btn-warning" : "btn btn-outline-warning";
     quickToggleBtn.innerText = isQuickMode ? "⚡ Quick Scan: ON" : "🔒 Secure: ON";
     markStatus.innerText = isQuickMode ? "Switched to Quick Scan (Instant)" : "Switched to Secure Mode (Blink required)";
+    // Immediately reset all actively tracked faces and cooldowns so previous liveness overrides are wiped
+    activeTracks.forEach(t => t.state = makeFaceState());
+    cooldown.clear();
   });
 }
 
@@ -161,24 +164,29 @@ function updateFaceState(state, lm) {
     } else {
       // Phase 3: Eyes Re-opening. Was it a real blink?
       if (state.phase === "BLINKING") {
-        // Rule 1: Must have stayed closed for at least 2 frames (Noise only lasts 1 frame)
+        let blinkValid = false;
+        // Rule 1: Must have stayed closed for at least MIN_BLINK_FRAMES (noise only 1 frame)
         if (state.closedFrames >= MIN_BLINK_FRAMES) {
-
-          // Rule 2: Nose must have stayed vertically stable (Blocks tilting a photo to spoof a blink)
+          // Rule 2: Nose must have stayed vertically stable (blocks tilting a photo)
           let minNose = 1.0, maxNose = 0.0;
           for (const y of state.noseYHistory) {
             if (y < minNose) minNose = y;
             if (y > maxNose) maxNose = y;
           }
           if ((maxNose - minNose) < MAX_NOSE_MOVE_FOR_BLINK) {
-            // Passed all anti-spoofing chronological & spatial constraints!
-            state.phase = "VERIFIED";
-            state.liveScore = 1;
+            blinkValid = true;
           }
         }
-        // Reset sequence whether valid or noise
+        // Reset closed-frame counter always
         state.closedFrames = 0;
-        state.phase = "WAITING";
+        if (blinkValid) {
+          // Passed all anti-spoofing checks — mark VERIFIED
+          state.phase = "VERIFIED";
+          state.liveScore = 1;
+        } else {
+          // Noise blink — return to WAITING
+          state.phase = "WAITING";
+        }
       }
     }
   }
@@ -232,29 +240,36 @@ function drawFaceBox(lm, color, label) {
   canvasCtx.fillText(label, x + 4, y - 6);
 }
 
-// ─── Send pre-computed landmarks to backend for recognition ──────────────────
-// The browser's FaceMesh already computed these for liveness — we reuse them
-// directly as JSON. No image encoding, no canvas, no server-side FaceMesh.
-// This is ~10x faster than uploading a JPEG.
-function sendLandmarks(faceLandmarksList) {
-  // faceLandmarksList: array of face landmark arrays (each element = one face)
-  const faces = faceLandmarksList.map(lm =>
-    lm.slice(0, 468).map(pt => ({ x: pt.x, y: pt.y, z: pt.z || 0 }))
-  );
+function captureFrameBlob() {
+  return new Promise(resolve => {
+    const w = markVideo.videoWidth || 640;
+    const h = markVideo.videoHeight || 480;
+    const tmp = document.createElement('canvas');
+    tmp.width = w; tmp.height = h;
+    tmp.getContext('2d').drawImage(markVideo, 0, 0, w, h);
+    tmp.toBlob(blob => resolve(blob), 'image/jpeg', 0.85);
+  });
+}
+
+// ─── Send image frame to backend for LBPH recognition ────────────────
+function sendFaceImage(blob) {
   // Lock the status bar so per-frame hints don't overwrite the result
   statusLocked = true;
   if (window.setMarkStatus) window.setMarkStatus('⏳ Recognising…', '');
   else markStatus.innerText = 'Recognising…';
 
-  fetch("/recognize_landmarks", {
+  const form = new FormData();
+  form.append('image', blob, 'frame.jpg');
+
+  fetch("/recognize_face", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ faces })
+    body: form
   })
     .then(r => r.json())
     .then(data => {
       if (data.error) {
         const msg = `Error: ${data.error}`;
+
         if (window.setMarkStatus) window.setMarkStatus(msg, 'err');
         else markStatus.innerText = msg;
         return;
@@ -344,7 +359,7 @@ async function onResults(results) {
   let primaryHint = "";
 
   // Track faces ready to be sent in this batch
-  const batchToSend = [];
+  let batchReady = false;
 
   // 1. Assign consistent tracking IDs based on spatial nearest-neighbor
   // MediaPipe randomly swaps face indices. We MUST spatially track them against history!
@@ -409,7 +424,7 @@ async function onResults(results) {
     if (live && !cooldown.has(id)) {
       cooldown.add(id);
 
-      batchToSend.push(lm);
+      batchReady = true;
 
       // Reset state & cooldown after a delay (force re-verify for next attempt)
       // Faster reset in Quick Scan mode.
@@ -423,8 +438,10 @@ async function onResults(results) {
   });
 
   // Dispatch batch if any faces are ready
-  if (batchToSend.length > 0) {
-    sendLandmarks(batchToSend);
+  if (batchReady) {
+    captureFrameBlob().then(blob => {
+      if(blob) sendFaceImage(blob);
+    });
   }
 
   // Only update liveness hint if status is not locked by a recognition result
@@ -486,8 +503,8 @@ stopMarkBtn.addEventListener("click", async () => {
     markVideo.srcObject.getTracks().forEach(t => t.stop());
     markVideo.srcObject = null;
   }
-  // Clear all liveness states
-  Object.keys(faceStates).forEach(k => delete faceStates[k]);
+  // Clear all tracking states
+  activeTracks = [];
   cooldown.clear();
   sessionRecognizedRolls.clear();
   startMarkBtn.disabled = false;

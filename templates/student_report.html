@@ -17,8 +17,8 @@
         }
 
         body {
-            background: #0f172a;
-            color: #f1f5f9;
+            background: #020617;
+            color: #f8fafc;
             font-family: 'Inter', sans-serif;
         }
 
@@ -46,8 +46,8 @@
 
         /* Profile card */
         .profile-card {
-            background: #1e293b;
-            border: 1px solid #334155;
+            background: #0f172a;
+            border: 1px solid #e2e8f0;
             border-radius: 16px;
             padding: 1.5rem;
             display: flex;
@@ -70,7 +70,7 @@
             height: 90px;
             border-radius: 50%;
             border: 3px solid #334155;
-            background: #0f172a;
+            background: #020617;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -122,8 +122,8 @@
         }
 
         .stat-card {
-            background: #1e293b;
-            border: 1px solid #334155;
+            background: #0f172a;
+            border: 1px solid #e2e8f0;
             border-radius: 13px;
             padding: 1.1rem 1.25rem;
             text-align: center;
@@ -161,8 +161,8 @@
 
         /* Attendance calendar */
         .cal-wrap {
-            background: #1e293b;
-            border: 1px solid #334155;
+            background: #0f172a;
+            border: 1px solid #e2e8f0;
             border-radius: 16px;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
@@ -197,9 +197,9 @@
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: #0f172a;
-            border: 1px solid #334155;
-            color: #f1f5f9;
+            background: #020617;
+            border: 1px solid #e2e8f0;
+            color: #f8fafc;
             padding: 2px 6px;
             border-radius: 4px;
             font-size: .65rem;
@@ -208,8 +208,8 @@
         }
 
         .day-absent {
-            background: #1e293b;
-            border: 1px solid #334155;
+            background: #0f172a;
+            border: 1px solid #e2e8f0;
         }
 
         .day-present {
@@ -264,8 +264,8 @@
 
         /* Records table */
         .tbl-wrap {
-            background: #1e293b;
-            border: 1px solid #334155;
+            background: #0f172a;
+            border: 1px solid #e2e8f0;
             border-radius: 14px;
             overflow: hidden;
         }
@@ -287,7 +287,7 @@
         }
 
         thead th {
-            background: #0f172a;
+            background: #020617;
             padding: .65rem 1rem;
             color: #64748b;
             font-size: .72rem;
@@ -336,6 +336,7 @@
             color: #c4b5fd;
         }
     </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 
 <body>
@@ -344,7 +345,7 @@
             <a href="/manage_students" class="btn btn-sm btn-outline-light" style="border-radius:7px;">← Back</a>
             <h4>📊 Student Attendance Report</h4>
         </div>
-        <div style="font-size:.8rem;color:#94a3b8;">{{ student[1] }} — Roll: {{ student[2] or '—' }}</div>
+        <div style="font-size:.8rem;color: #475569;">{{ student[1] }} — Roll: {{ student[2] or '—' }}</div>
     </div>
 
     <div class="page">
@@ -407,7 +408,7 @@
                 <span><span class="legend-dot day-present"></span>Present</span>
                 <span><span class="legend-dot day-late"></span>Late</span>
                 <span><span class="legend-dot day-manual"></span>Manual</span>
-                <span><span class="legend-dot day-absent" style="border:1px solid #334155;"></span>Absent</span>
+                <span><span class="legend-dot day-absent" style="border: 1px solid #e2e8f0;"></span>Absent</span>
             </div>
         </div>
 
